@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
@@ -23,6 +24,11 @@ class AuthController extends Controller
             'name' => $dados['name'],
             'email' => $dados['email'],
             'password' => Hash::make($dados['password']),
+        ]);
+
+        Role::firstOrCreate([
+            'name' => 'admin',
+            'guard_name' => 'web',
         ]);
 
         $usuario->assignRole('admin');
