@@ -7,6 +7,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppTable from '@/components/ui/AppTable.vue'
+import { estadosBrasil } from '@/constants/estados'
 import {
   criarPaciente,
   listarPacientes,
@@ -187,7 +188,18 @@ onMounted(loadPatients)
           <AppInput v-model="form.numero" label="Número" />
           <AppInput v-model="form.bairro" label="Bairro" />
           <AppInput v-model="form.cidade" label="Cidade" />
-          <AppInput v-model="form.estado" label="Estado" placeholder="UF" />
+          <label class="grid gap-1.5 text-sm font-medium text-slate-700">
+            Estado
+            <select
+              v-model="form.estado"
+              class="h-10 rounded-lg border border-[#E2E8F0] bg-white px-3 text-sm text-[#0F172A] outline-none transition focus:border-[#6FF6A5] focus:ring-4 focus:ring-[#6FF6A5]/20"
+            >
+              <option value="">Selecione um estado</option>
+              <option v-for="estado in estadosBrasil" :key="estado.sigla" :value="estado.sigla">
+                {{ estado.sigla }} - {{ estado.nome }}
+              </option>
+            </select>
+          </label>
         </div>
 
         <label class="grid gap-1.5 text-sm font-medium text-slate-700">
