@@ -1,14 +1,27 @@
 {
-    "sqltools.connections": [
-        {
-            "ssh": "Disabled",
-            "previewLimit": 50,
-            "server": "localhost",
-            "port": 5433,
-            "driver": "PostgreSQL",
-            "name": "Clinic Saas",
-            "database": "clinic",
-            "username": "postgres"
-        }
-    ]
+  "sqltools.connections": [
+    {
+      "ssh": "Disabled",
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 5433,
+      "driver": "PostgreSQL",
+      "name": "Clinic Saas",
+      "database": "clinic",
+      "username": "postgres"
+    }
+  ],
+  "phpunit.command": "docker compose exec -t backend /bin/sh -c \"mkdir -p /home/oem/Projetos/clinic-saas && ln -sfn /var/www /home/oem/Projetos/clinic-saas/backend && cd /var/www && ${php} ${phpargs} ${phpunit} ${phpunitargs}\"",
+  "phpunit.php": "php",
+  "phpunit.phpunit": "vendor/bin/phpunit",
+  "phpunit.args": [
+    "--configuration",
+    "phpunit.xml"
+  ],
+  "phpunit.cwd": "backend",
+  "phpunit.paths": {
+    "/home/oem/Projetos/clinic-saas/backend": "/var/www",
+    "${workspaceFolder}/backend": "/var/www"
+  },
+  "phpunit.saveBeforeTest": true
 }

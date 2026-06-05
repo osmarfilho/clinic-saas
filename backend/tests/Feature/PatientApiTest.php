@@ -1,0 +1,114 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Patient;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Sanctum\Sanctum;
+use Tests\TestCase;
+
+class PatientApiTest extends TestCase
+{
+    use RefreshDatabase;
+
+    public function test_patient_routes_require_authentication(): void
+    {
+        $this->getJson('/api/patients')
+            ->assertStatus(401);
+    }
+
+    public function test_authenticated_user_can_create_and_list_patients(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $payload = $this->patientPayload();
+
+        $this->postJson('/api/patients', $payload)
+            ->assertCreated()
+            ->assertJsonPath('nome', 'Maria Souza')
+            ->assertJsonPath('cpf', '12345678901')
+            ->assertJsonPath('estado', 'SP');
+
+        $this->assertDatabaseHas('patients', [
+            'nome' => 'Maria Souza',
+            'cpf' => '12345678901',
+            'estado' => 'SP',
+        ]);
+
+        $this->getJson('/api/patients?search=Maria')
+            ->assertOk()
+            ->assertJsonPath('data.0.nome', 'Maria Souza');
+    }
+
+    public function test_authenticated_user_can_update_patient(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $patient = Patient::create($this->patientPayload());
+
+        $this->putJson("/api/patients/{$patient->id}", [
+            'nome' => 'Maria Souza Atualizada',
+            'cpf' => '12345678901',
+            'telefone' => '11999999999',
+            'estado' => 'RJ',
+        ])
+            ->assertOk()
+            ->assertJsonPath('nome', 'Maria Souza Atualizada')
+            ->assertJsonPath('estado', 'RJ');
+
+        $this->assertDatabaseHas('patients', [
+            'id' => $patient->id,
+            'nome' => 'Maria Souza Atualizada',
+            'estado' => 'RJ',
+        ]);
+    }
+
+    public function test_patient_validation_requires_name_and_unique_cpf(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        Patient::create($this->patientPayload());
+
+        $this->postJson('/api/patients', [
+            'nome' => '',
+            'cpf' => '12345678901',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['nome', 'cpf']);
+    }
+
+    public function test_authenticated_user_can_soft_delete_patient(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $patient = Patient::create($this->patientPayload());
+
+        $this->deleteJson("/api/patients/{$patient->id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'Paciente removido com sucesso.');
+
+        $this->assertSoftDeleted('patients', [
+            'id' => $patient->id,
+        ]);
+    }
+
+    private function patientPayload(): array
+    {
+        return [
+            'nome' => 'Maria Souza',
+            'cpf' => '12345678901',
+            'telefone' => '11988887777',
+            'email' => 'maria@example.com',
+            'data_nascimento' => '1990-05-12',
+            'convenio' => 'Saúde Mais',
+            'cep' => '01001000',
+            'endereco' => 'Praça da Sé',
+            'numero' => '100',
+            'bairro' => 'Sé',
+            'cidade' => 'São Paulo',
+            'estado' => 'SP',
+            'observacoes' => 'Paciente em acompanhamento.',
+        ];
+    }
+}
