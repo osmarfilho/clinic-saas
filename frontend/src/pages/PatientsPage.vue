@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { Plus, Search, Trash2 } from 'lucide-vue-next'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
@@ -9,6 +9,7 @@ import AppModal from '@/components/ui/AppModal.vue'
 import AppTable from '@/components/ui/AppTable.vue'
 import { estadosBrasil } from '@/constants/estados'
 import {
+  atualizarPaciente,
   criarPaciente,
   listarPacientes,
   removerPaciente,
@@ -22,6 +23,7 @@ const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
 const modalOpen = ref(false)
+const editingPatientId = ref<number | null>(null)
 
 const emptyForm: PatientPayload = {
   nome: '',
@@ -41,8 +43,45 @@ const emptyForm: PatientPayload = {
 
 const form = reactive<PatientPayload>({ ...emptyForm })
 
+function normalizePatientForm(patient: Patient): PatientPayload {
+  return {
+    nome: patient.nome,
+    cpf: patient.cpf,
+    telefone: patient.telefone ?? '',
+    email: patient.email ?? '',
+    data_nascimento: patient.data_nascimento ?? '',
+    convenio: patient.convenio ?? '',
+    cep: patient.cep ?? '',
+    endereco: patient.endereco ?? '',
+    numero: patient.numero ?? '',
+    bairro: patient.bairro ?? '',
+    cidade: patient.cidade ?? '',
+    estado: patient.estado ?? '',
+    observacoes: patient.observacoes ?? '',
+    ativo: patient.ativo,
+  }
+}
+
 function resetForm() {
   Object.assign(form, emptyForm)
+}
+
+function openCreateModal() {
+  editingPatientId.value = null
+  resetForm()
+  modalOpen.value = true
+}
+
+function openEditModal(patient: Patient) {
+  editingPatientId.value = patient.id
+  Object.assign(form, normalizePatientForm(patient))
+  modalOpen.value = true
+}
+
+function closeModal() {
+  modalOpen.value = false
+  editingPatientId.value = null
+  resetForm()
 }
 
 async function loadPatients() {
@@ -64,15 +103,23 @@ async function submit() {
   error.value = ''
 
   try {
-    await criarPaciente({
+    const payload = {
       ...form,
       estado: form.estado?.toUpperCase(),
-    })
-    modalOpen.value = false
-    resetForm()
+    }
+
+    if (editingPatientId.value) {
+      await atualizarPaciente(editingPatientId.value, payload)
+    } else {
+      await criarPaciente(payload)
+    }
+
+    closeModal()
     await loadPatients()
   } catch {
-    error.value = 'Não foi possível salvar o paciente. Confira os campos obrigatórios.'
+    error.value = editingPatientId.value
+      ? 'Não foi possível atualizar o paciente. Confira os campos obrigatórios.'
+      : 'Não foi possível salvar o paciente. Confira os campos obrigatórios.'
   } finally {
     saving.value = false
   }
@@ -101,7 +148,7 @@ onMounted(loadPatients)
         <h1 class="text-2xl font-bold text-[#0F172A]">Pacientes</h1>
         <p class="mt-1 text-sm text-slate-500">Cadastro e acompanhamento dos pacientes da clínica</p>
       </div>
-      <AppButton @click="modalOpen = true">
+      <AppButton @click="openCreateModal">
         <Plus class="h-4 w-4" />
         Novo paciente
       </AppButton>
@@ -163,6 +210,13 @@ onMounted(loadPatients)
           </td>
           <td class="px-4 py-3 text-right">
             <button
+              class="mr-1 inline-grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-100"
+              title="Editar paciente"
+              @click="openEditModal(patient)"
+            >
+              <Pencil class="h-4 w-4" />
+            </button>
+            <button
               class="inline-grid h-9 w-9 place-items-center rounded-lg text-rose-600 hover:bg-rose-50"
               title="Remover paciente"
               @click="removePatient(patient)"
@@ -174,7 +228,11 @@ onMounted(loadPatients)
       </tbody>
     </AppTable>
 
-    <AppModal :open="modalOpen" title="Novo paciente" @close="modalOpen = false">
+    <AppModal
+      :open="modalOpen"
+      :title="editingPatientId ? 'Editar paciente' : 'Novo paciente'"
+      @close="closeModal"
+    >
       <form class="grid gap-4" @submit.prevent="submit">
         <div class="grid gap-4 md:grid-cols-2">
           <AppInput v-model="form.nome" label="Nome" required />
@@ -211,9 +269,9 @@ onMounted(loadPatients)
         </label>
 
         <div class="flex justify-end gap-2 border-t border-[#E2E8F0] pt-4">
-          <AppButton variant="secondary" @click="modalOpen = false">Cancelar</AppButton>
+          <AppButton variant="secondary" @click="closeModal">Cancelar</AppButton>
           <AppButton type="submit" :disabled="saving">
-            {{ saving ? 'Salvando...' : 'Salvar paciente' }}
+            {{ saving ? 'Salvando...' : editingPatientId ? 'Atualizar paciente' : 'Salvar paciente' }}
           </AppButton>
         </div>
       </form>
