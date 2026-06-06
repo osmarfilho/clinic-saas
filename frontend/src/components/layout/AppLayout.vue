@@ -1,14 +1,17 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import AppSidebar from './AppSidebar.vue'
 import AppTopbar from './AppTopbar.vue'
+
+const mobileSidebarOpen = ref(false)
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#F8FAFC] text-[#0F172A]">
+  <div class="min-h-screen bg-app text-foreground">
     <div class="flex">
-      <AppSidebar />
+      <AppSidebar :mobile-open="mobileSidebarOpen" @close="mobileSidebarOpen = false" />
       <div class="min-h-screen flex-1">
-        <AppTopbar />
+        <AppTopbar @menu="mobileSidebarOpen = true" />
         <main class="p-4 lg:p-6">
           <slot />
         </main>

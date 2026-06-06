@@ -1,43 +1,89 @@
 <script setup lang="ts">
-import { Bell, LogOut, Search, UserCircle } from 'lucide-vue-next'
+import { Bell, ChevronDown, LogOut, Menu, Search } from 'lucide-vue-next'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { listarNotificacoes } from '@/services/notifications'
+
+defineEmits<{
+  menu: []
+}>()
 
 const auth = useAuthStore()
 const router = useRouter()
+const unreadCount = ref(0)
 
 async function logout() {
   await auth.logout()
   router.push('/login')
 }
+
+async function loadNotifications() {
+  try {
+    const response = await listarNotificacoes()
+    unreadCount.value = response.unread_count
+  } catch {
+    unreadCount.value = 0
+  }
+}
+
+onMounted(loadNotifications)
 </script>
 
 <template>
-  <header class="flex h-16 items-center justify-between border-b border-[#E2E8F0] bg-white px-4 lg:px-6">
-    <label class="relative w-full max-w-md">
-      <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+  <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-surface/90 px-4 backdrop-blur-xl lg:px-6">
+    <div class="flex min-w-0 flex-1 items-center gap-3">
+      <button
+        class="grid h-10 w-10 place-items-center rounded-xl border border-border text-muted hover:bg-surface-muted lg:hidden"
+        type="button"
+        aria-label="Abrir menu"
+        @click="$emit('menu')"
+      >
+        <Menu class="h-5 w-5" />
+      </button>
+
+      <label class="relative w-full max-w-xl">
+        <Search class="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+        <span class="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-semibold text-muted sm:inline-flex">
+          ⌘K
+        </span>
       <input
-        class="h-10 w-full rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] pl-10 pr-3 text-sm outline-none focus:border-[#6FF6A5] focus:ring-4 focus:ring-[#6FF6A5]/20"
+        class="h-11 w-full rounded-full border border-border bg-surface-muted pl-11 pr-16 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-brand focus:ring-4 focus:ring-brand-ring/40"
         placeholder="Buscar pacientes, agenda ou documentos"
         type="search"
       />
-    </label>
+      </label>
+    </div>
 
     <div class="ml-4 flex items-center gap-2">
       <button
-        class="grid h-10 w-10 place-items-center rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50"
+        class="relative grid h-10 w-10 place-items-center rounded-xl border border-border text-muted transition hover:bg-surface-muted hover:text-foreground"
         title="Notificações"
+        aria-label="Abrir notificações"
         @click="router.push('/notificacoes')"
       >
         <Bell class="h-4 w-4" />
+        <span
+          v-if="unreadCount"
+          class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-chart-rose px-1 text-[10px] font-bold text-white"
+        >
+          {{ unreadCount }}
+        </span>
       </button>
-      <div class="hidden items-center gap-2 rounded-lg border border-[#E2E8F0] px-3 py-2 md:flex">
-        <UserCircle class="h-5 w-5 text-slate-500" />
-        <span class="text-sm font-medium text-[#0F172A]">{{ auth.user?.name ?? 'Usuário' }}</span>
-      </div>
+      <button class="hidden items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2 transition hover:bg-surface-muted md:flex" type="button">
+        <span class="grid h-9 w-9 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand-strong">
+          {{ (auth.user?.name ?? 'U').slice(0, 1).toUpperCase() }}
+        </span>
+        <span class="text-left">
+          <span class="block text-sm font-bold text-foreground">{{ auth.user?.name ?? 'Usuário' }}</span>
+          <span class="block text-xs text-muted">Administrador</span>
+        </span>
+        <ChevronDown class="h-4 w-4 text-muted" />
+      </button>
       <button
-        class="grid h-10 w-10 place-items-center rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50"
+        class="grid h-10 w-10 place-items-center rounded-xl border border-border text-muted transition hover:bg-surface-muted hover:text-foreground"
         title="Sair"
+        aria-label="Sair"
         @click="logout"
       >
         <LogOut class="h-4 w-4" />
