@@ -31,8 +31,8 @@ class ClinicModulesApiTest extends TestCase
             'title' => 'Consulta inicial',
             'professional' => 'Dra. Paula',
             'type' => 'Consulta',
-            'starts_at' => now()->setTime(9, 0)->format('Y-m-d H:i:s'),
-            'ends_at' => now()->setTime(9, 30)->format('Y-m-d H:i:s'),
+            'starts_at' => now()->addDay()->setTime(9, 0)->format('Y-m-d H:i:s'),
+            'ends_at' => now()->addDay()->setTime(9, 30)->format('Y-m-d H:i:s'),
             'status' => 'scheduled',
             'price' => 180,
             'notes' => 'Chegar 10 minutos antes.',
@@ -54,6 +54,79 @@ class ClinicModulesApiTest extends TestCase
         $this->getJson('/api/appointments')
             ->assertOk()
             ->assertJsonPath('data.0.title', 'Consulta inicial');
+    }
+
+    public function test_appointment_validation_blocks_past_dates_and_schedule_conflicts(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $patient = Patient::create($this->patientPayload());
+
+        $this->postJson('/api/appointments', [
+            'patient_id' => $patient->id,
+            'title' => 'Consulta antiga',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->subDay()->setTime(9, 0)->format('Y-m-d H:i:s'),
+            'ends_at' => now()->subDay()->setTime(9, 30)->format('Y-m-d H:i:s'),
+            'status' => 'scheduled',
+            'price' => 180,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['starts_at']);
+
+        Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta existente',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->addDay()->setTime(10, 0),
+            'ends_at' => now()->addDay()->setTime(10, 30),
+            'status' => 'scheduled',
+            'price' => 180,
+        ]);
+
+        $this->postJson('/api/appointments', [
+            'patient_id' => $patient->id,
+            'title' => 'Consulta conflitante',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->addDay()->setTime(10, 15)->format('Y-m-d H:i:s'),
+            'ends_at' => now()->addDay()->setTime(10, 45)->format('Y-m-d H:i:s'),
+            'status' => 'scheduled',
+            'price' => 180,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['starts_at']);
+    }
+
+    public function test_canceling_appointment_creates_notification(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $patient = Patient::create($this->patientPayload());
+        $appointment = Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta para cancelar',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->addDay()->setTime(11, 0),
+            'ends_at' => now()->addDay()->setTime(11, 30),
+            'status' => 'scheduled',
+            'price' => 180,
+        ]);
+
+        $this->putJson("/api/appointments/{$appointment->id}", [
+            'status' => 'canceled',
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'canceled');
+
+        $this->assertDatabaseHas('clinic_notifications', [
+            'user_id' => $user->id,
+            'title' => 'Consulta cancelada',
+            'body' => 'Consulta para cancelar foi cancelada.',
+            'type' => 'warning',
+        ]);
     }
 
     public function test_authenticated_user_can_manage_financial_transactions_and_dashboard(): void

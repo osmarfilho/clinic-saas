@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { isAxiosError } from 'axios'
 import { Eye, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -30,6 +31,8 @@ const patientPendingDeletion = ref<Patient | null>(null)
 const deleteModalOpen = ref(false)
 const deleting = ref(false)
 const successMessage = ref('')
+const formErrors = reactive<Partial<Record<keyof PatientPayload, string>>>({})
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
 
 const emptyForm: PatientPayload = {
   nome: '',
@@ -48,6 +51,83 @@ const emptyForm: PatientPayload = {
 }
 
 const form = reactive<PatientPayload>({ ...emptyForm })
+
+const canSubmit = computed(() => Object.keys(validateForm()).length === 0 && !saving.value)
+
+function onlyDigits(value = '') {
+  return value.replace(/\D/g, '')
+}
+
+function maskCpf(value = '') {
+  return onlyDigits(value)
+    .slice(0, 11)
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+}
+
+function maskPhone(value = '') {
+  const digits = onlyDigits(value).slice(0, 11)
+
+  if (digits.length <= 10) {
+    return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2')
+  }
+
+  return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2')
+}
+
+function maskCep(value = '') {
+  return onlyDigits(value).slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2')
+}
+
+function clearFormErrors() {
+  Object.keys(formErrors).forEach((key) => {
+    delete formErrors[key as keyof PatientPayload]
+  })
+}
+
+function validateForm() {
+  const errors: Partial<Record<keyof PatientPayload, string>> = {}
+
+  if (!form.nome.trim()) {
+    errors.nome = 'Informe o nome do paciente.'
+  }
+
+  if (onlyDigits(form.cpf).length !== 11) {
+    errors.cpf = 'Informe um CPF com 11 números.'
+  }
+
+  if (form.telefone && ![10, 11].includes(onlyDigits(form.telefone).length)) {
+    errors.telefone = 'Informe um telefone válido com DDD.'
+  }
+
+  if (form.numero && !/^[1-9]\d*$/.test(form.numero)) {
+    errors.numero = 'O número deve conter apenas números positivos.'
+  }
+
+  if (form.cep && onlyDigits(form.cep).length !== 8) {
+    errors.cep = 'Informe um CEP com 8 números.'
+  }
+
+  return errors
+}
+
+function applyFormErrors(errors: Partial<Record<keyof PatientPayload, string>>) {
+  clearFormErrors()
+  Object.assign(formErrors, errors)
+}
+
+function errorMessageFromResponse(error: unknown, fallback: string) {
+  if (!isAxiosError(error)) return fallback
+
+  const errors = error.response?.data?.errors
+  if (errors && typeof errors === 'object') {
+    const firstError = Object.values(errors).flat().find(Boolean)
+    if (typeof firstError === 'string') return firstError
+  }
+
+  return error.response?.data?.message ?? fallback
+}
 
 function normalizePatientForm(patient: Patient): PatientPayload {
   return {
@@ -70,6 +150,7 @@ function normalizePatientForm(patient: Patient): PatientPayload {
 
 function resetForm() {
   Object.assign(form, emptyForm)
+  clearFormErrors()
 }
 
 function openCreateModal() {
@@ -133,13 +214,25 @@ async function loadPatients() {
 }
 
 async function submit() {
+  const validationErrors = validateForm()
+  if (Object.keys(validationErrors).length > 0) {
+    applyFormErrors(validationErrors)
+    error.value = 'Confira os campos destacados antes de salvar.'
+    return
+  }
+
   saving.value = true
   error.value = ''
   successMessage.value = ''
+  clearFormErrors()
 
   try {
     const payload = {
       ...form,
+      cpf: onlyDigits(form.cpf),
+      telefone: onlyDigits(form.telefone),
+      cep: onlyDigits(form.cep),
+      numero: form.numero ? onlyDigits(form.numero) : '',
       estado: form.estado?.toUpperCase(),
     }
     const wasEditing = Boolean(editingPatientId.value)
@@ -153,10 +246,13 @@ async function submit() {
     closeModal()
     await loadPatients()
     successMessage.value = wasEditing ? 'Paciente atualizado com sucesso.' : 'Paciente cadastrado com sucesso.'
-  } catch {
-    error.value = editingPatientId.value
-      ? 'Não foi possível atualizar o paciente. Confira os campos obrigatórios.'
-      : 'Não foi possível salvar o paciente. Confira os campos obrigatórios.'
+  } catch (requestError) {
+    error.value = errorMessageFromResponse(
+      requestError,
+      editingPatientId.value
+        ? 'Não foi possível atualizar o paciente. Confira os campos obrigatórios.'
+        : 'Não foi possível salvar o paciente. Confira os campos obrigatórios.',
+    )
   } finally {
     saving.value = false
   }
@@ -181,6 +277,31 @@ async function confirmDeletePatient() {
 }
 
 onMounted(loadPatients)
+
+watch(search, () => {
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(loadPatients, 350)
+})
+
+watch(() => form.cpf, (value) => {
+  const masked = maskCpf(value)
+  if (value !== masked) form.cpf = masked
+})
+
+watch(() => form.telefone, (value) => {
+  const masked = maskPhone(value)
+  if (value !== masked) form.telefone = masked
+})
+
+watch(() => form.cep, (value) => {
+  const masked = maskCep(value)
+  if (value !== masked) form.cep = masked
+})
+
+watch(() => form.numero, (value) => {
+  const digits = onlyDigits(value).slice(0, 10)
+  if (value !== digits) form.numero = digits
+})
 </script>
 
 <template>
@@ -287,15 +408,15 @@ onMounted(loadPatients)
     >
       <form class="grid gap-4" @submit.prevent="submit">
         <div class="grid gap-4 md:grid-cols-2">
-          <AppInput v-model="form.nome" label="Nome" required />
-          <AppInput v-model="form.cpf" label="CPF" required />
-          <AppInput v-model="form.telefone" label="Telefone" />
+          <AppInput v-model="form.nome" label="Nome" :error="formErrors.nome" required />
+          <AppInput v-model="form.cpf" label="CPF" :error="formErrors.cpf" inputmode="numeric" :maxlength="14" required />
+          <AppInput v-model="form.telefone" label="Telefone" :error="formErrors.telefone" inputmode="tel" :maxlength="15" />
           <AppInput v-model="form.email" label="E-mail" type="email" />
           <AppInput v-model="form.data_nascimento" label="Data de nascimento" type="date" />
           <AppInput v-model="form.convenio" label="Convênio" />
-          <AppInput v-model="form.cep" label="CEP" />
+          <AppInput v-model="form.cep" label="CEP" :error="formErrors.cep" inputmode="numeric" :maxlength="9" />
           <AppInput v-model="form.endereco" label="Endereço" />
-          <AppInput v-model="form.numero" label="Número" />
+          <AppInput v-model="form.numero" label="Número" :error="formErrors.numero" inputmode="numeric" />
           <AppInput v-model="form.bairro" label="Bairro" />
           <AppInput v-model="form.cidade" label="Cidade" />
           <label class="grid gap-1.5 text-sm font-medium text-slate-700">
@@ -322,7 +443,7 @@ onMounted(loadPatients)
 
         <div class="flex justify-end gap-2 border-t border-[#E2E8F0] pt-4">
           <AppButton variant="secondary" @click="closeModal">Cancelar</AppButton>
-          <AppButton type="submit" :disabled="saving">
+          <AppButton type="submit" :disabled="!canSubmit">
             {{ saving ? 'Salvando...' : editingPatientId ? 'Atualizar paciente' : 'Salvar paciente' }}
           </AppButton>
         </div>

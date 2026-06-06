@@ -36,6 +36,12 @@ class PatientApiTest extends TestCase
             'estado' => 'SP',
         ]);
 
+        $this->assertDatabaseHas('clinic_notifications', [
+            'title' => 'Novo paciente cadastrado',
+            'body' => 'Novo paciente cadastrado: Maria Souza',
+            'type' => 'success',
+        ]);
+
         $this->getJson('/api/patients?search=Maria')
             ->assertOk()
             ->assertJsonPath('data.0.nome', 'Maria Souza');
@@ -62,6 +68,11 @@ class PatientApiTest extends TestCase
             'nome' => 'Maria Souza Atualizada',
             'estado' => 'RJ',
         ]);
+
+        $this->assertDatabaseHas('clinic_notifications', [
+            'title' => 'Paciente atualizado',
+            'body' => 'Paciente atualizado: Maria Souza Atualizada',
+        ]);
     }
 
     public function test_patient_validation_requires_name_and_unique_cpf(): void
@@ -76,6 +87,26 @@ class PatientApiTest extends TestCase
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['nome', 'cpf']);
+    }
+
+    public function test_patient_address_number_must_be_positive_integer(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/patients', [
+            ...$this->patientPayload(),
+            'numero' => '12A',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['numero']);
+
+        $this->postJson('/api/patients', [
+            ...$this->patientPayload(),
+            'cpf' => '98765432100',
+            'numero' => 0,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['numero']);
     }
 
     public function test_authenticated_user_can_soft_delete_patient(): void

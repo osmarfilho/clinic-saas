@@ -22,12 +22,20 @@ class StorePatientRequest extends FormRequest
             'convenio' => ['nullable', 'string', 'max:255'],
             'cep' => ['nullable', 'string', 'max:9'],
             'endereco' => ['nullable', 'string', 'max:255'],
-            'numero' => ['nullable', 'string', 'max:20'],
+            'numero' => ['nullable', 'integer', 'min:1'],
             'bairro' => ['nullable', 'string', 'max:255'],
             'cidade' => ['nullable', 'string', 'max:255'],
             'estado' => ['nullable', 'string', 'size:2'],
             'observacoes' => ['nullable', 'string'],
             'ativo' => ['sometimes', 'boolean'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'numero.integer' => 'O número do endereço deve conter apenas números.',
+            'numero.min' => 'O número do endereço deve ser maior que zero.',
         ];
     }
 }

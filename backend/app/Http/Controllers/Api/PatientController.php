@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
+use App\Models\ClinicNotification;
 use App\Models\Patient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,6 +36,14 @@ class PatientController extends Controller
     {
         $patient = Patient::create($request->validated());
 
+        ClinicNotification::create([
+            'user_id' => $request->user()?->id,
+            'title' => 'Novo paciente cadastrado',
+            'body' => 'Novo paciente cadastrado: '.$patient->nome,
+            'type' => 'success',
+            'data' => ['patient_id' => $patient->id],
+        ]);
+
         return response()->json($patient, 201);
     }
 
@@ -46,6 +55,14 @@ class PatientController extends Controller
     public function update(UpdatePatientRequest $request, Patient $patient): JsonResponse
     {
         $patient->update($request->validated());
+
+        ClinicNotification::create([
+            'user_id' => $request->user()?->id,
+            'title' => 'Paciente atualizado',
+            'body' => 'Paciente atualizado: '.$patient->nome,
+            'type' => 'info',
+            'data' => ['patient_id' => $patient->id],
+        ]);
 
         return response()->json($patient->refresh());
     }
