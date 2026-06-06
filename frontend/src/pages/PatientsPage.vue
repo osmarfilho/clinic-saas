@@ -335,19 +335,19 @@ watch(() => form.numero, (value) => {
     <AppToast v-if="successMessage" :message="successMessage" type="success" />
     <AppToast v-if="error" :message="error" type="error" />
 
-    <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 class="text-2xl font-bold text-[#0F172A]">Pacientes</h1>
+    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+      <div class="min-w-0">
+        <h1 class="text-2xl font-bold text-[#0F172A] sm:text-3xl">Pacientes</h1>
         <p class="mt-1 text-sm text-slate-500">Cadastro e acompanhamento dos pacientes da clínica</p>
       </div>
-      <AppButton @click="openCreateModal">
+      <AppButton class="w-full sm:w-auto" @click="openCreateModal">
         <Plus class="h-4 w-4" />
         Novo paciente
       </AppButton>
     </div>
 
-    <section class="mb-4 grid gap-3 rounded-lg border border-[#E2E8F0] bg-white p-4 lg:grid-cols-[1fr_180px_220px_auto]">
-      <label class="relative min-w-64 flex-1">
+    <section class="mb-4 grid gap-3 rounded-lg border border-[#E2E8F0] bg-white p-3 sm:grid-cols-2 sm:p-4 lg:grid-cols-[1fr_180px_220px_auto]">
+      <label class="relative min-w-0 sm:col-span-2 lg:col-span-1">
         <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           v-model="search"
@@ -357,18 +357,18 @@ watch(() => form.numero, (value) => {
           @keyup.enter="loadPatients"
         />
       </label>
-      <select v-model="statusFilter" class="h-10 rounded-lg border border-[#E2E8F0] px-3 text-sm">
+      <select v-model="statusFilter" class="h-10 w-full rounded-lg border border-[#E2E8F0] px-3 text-sm">
         <option value="">Todos os status</option>
         <option value="1">Ativos</option>
         <option value="0">Inativos</option>
       </select>
-      <select v-model="insuranceFilter" class="h-10 rounded-lg border border-[#E2E8F0] px-3 text-sm">
+      <select v-model="insuranceFilter" class="h-10 w-full rounded-lg border border-[#E2E8F0] px-3 text-sm">
         <option value="">Todos os convênios</option>
         <option v-for="insurance in insuranceOptions" :key="String(insurance)" :value="String(insurance)">
           {{ insurance }}
         </option>
       </select>
-      <AppButton variant="secondary" :disabled="loading" @click="loadPatients">
+      <AppButton class="w-full sm:col-span-2 lg:col-span-1" variant="secondary" :disabled="loading" @click="loadPatients">
         {{ loading ? 'Buscando...' : 'Buscar' }}
       </AppButton>
     </section>
@@ -384,64 +384,105 @@ watch(() => form.numero, (value) => {
       Carregando pacientes...
     </div>
 
-    <AppTable v-else>
-      <thead class="bg-slate-50">
-        <tr>
-          <th class="px-4 py-3 font-semibold text-slate-600">Nome</th>
-          <th class="px-4 py-3 font-semibold text-slate-600">CPF</th>
-          <th class="px-4 py-3 font-semibold text-slate-600">Contato</th>
-          <th class="px-4 py-3 font-semibold text-slate-600">Convênio</th>
-          <th class="px-4 py-3 font-semibold text-slate-600">Cidade</th>
-          <th class="px-4 py-3 font-semibold text-slate-600">Status</th>
-          <th class="px-4 py-3 text-right font-semibold text-slate-600">Ações</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-[#E2E8F0]">
-        <tr v-if="patients.length === 0">
-          <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-500">
-            Nenhum paciente encontrado.
-          </td>
-        </tr>
-        <tr v-for="patient in patients" :key="patient.id" class="hover:bg-slate-50">
-          <td class="px-4 py-3">
-            <strong class="text-[#0F172A]">{{ patient.nome }}</strong>
-            <p class="text-xs text-slate-500">{{ patient.email || 'Sem e-mail' }}</p>
-          </td>
-          <td class="px-4 py-3 text-slate-600">{{ formatCpf(patient.cpf) }}</td>
-          <td class="px-4 py-3 text-slate-600">{{ formatPhone(patient.telefone ?? '') }}</td>
-          <td class="px-4 py-3 text-slate-600">{{ patient.convenio || 'Particular' }}</td>
-          <td class="px-4 py-3 text-slate-600">{{ patient.cidade || '-' }}</td>
-          <td class="px-4 py-3">
+    <template v-else>
+      <section class="grid gap-3 lg:hidden">
+        <div v-if="patients.length === 0" class="rounded-lg border border-[#E2E8F0] bg-white px-4 py-8 text-center text-sm text-slate-500">
+          Nenhum paciente encontrado.
+        </div>
+
+        <article v-for="patient in patients" :key="patient.id" class="rounded-lg border border-[#E2E8F0] bg-white p-4 shadow-sm">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <strong class="block truncate text-[#0F172A]">{{ patient.nome }}</strong>
+              <p class="mt-1 truncate text-xs text-slate-500">{{ patient.email || 'Sem e-mail' }}</p>
+            </div>
             <AppBadge :tone="patient.ativo ? 'success' : 'danger'">
               {{ patient.ativo ? 'Ativo' : 'Inativo' }}
             </AppBadge>
-          </td>
-          <td class="px-4 py-3 text-right">
-            <button
-              class="mr-1 inline-grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-100"
-              title="Ver detalhes"
-              @click="openDetailsModal(patient)"
-            >
+          </div>
+
+          <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+            <div>
+              <dt class="text-xs font-semibold uppercase text-slate-400">CPF</dt>
+              <dd class="mt-1 text-slate-700">{{ formatCpf(patient.cpf) }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-semibold uppercase text-slate-400">Contato</dt>
+              <dd class="mt-1 text-slate-700">{{ formatPhone(patient.telefone ?? '') }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-semibold uppercase text-slate-400">Convênio</dt>
+              <dd class="mt-1 truncate text-slate-700">{{ patient.convenio || 'Particular' }}</dd>
+            </div>
+            <div>
+              <dt class="text-xs font-semibold uppercase text-slate-400">Cidade</dt>
+              <dd class="mt-1 truncate text-slate-700">{{ patient.cidade || '-' }}</dd>
+            </div>
+          </dl>
+
+          <div class="mt-4 grid grid-cols-3 gap-2">
+            <button class="grid h-10 place-items-center rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100" title="Ver detalhes" @click="openDetailsModal(patient)">
               <Eye class="h-4 w-4" />
             </button>
-            <button
-              class="mr-1 inline-grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-100"
-              title="Editar paciente"
-              @click="openEditModal(patient)"
-            >
+            <button class="grid h-10 place-items-center rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100" title="Editar paciente" @click="openEditModal(patient)">
               <Pencil class="h-4 w-4" />
             </button>
-            <button
-              class="inline-grid h-9 w-9 place-items-center rounded-lg text-rose-600 hover:bg-rose-50"
-              title="Remover paciente"
-              @click="openDeleteModal(patient)"
-            >
+            <button class="grid h-10 place-items-center rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100" title="Remover paciente" @click="openDeleteModal(patient)">
               <Trash2 class="h-4 w-4" />
             </button>
-          </td>
-        </tr>
-      </tbody>
-    </AppTable>
+          </div>
+        </article>
+      </section>
+
+      <div class="hidden lg:block">
+        <AppTable>
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-4 py-3 font-semibold text-slate-600">Nome</th>
+              <th class="px-4 py-3 font-semibold text-slate-600">CPF</th>
+              <th class="px-4 py-3 font-semibold text-slate-600">Contato</th>
+              <th class="px-4 py-3 font-semibold text-slate-600">Convênio</th>
+              <th class="px-4 py-3 font-semibold text-slate-600">Cidade</th>
+              <th class="px-4 py-3 font-semibold text-slate-600">Status</th>
+              <th class="px-4 py-3 text-right font-semibold text-slate-600">Ações</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-[#E2E8F0]">
+            <tr v-if="patients.length === 0">
+              <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-500">
+                Nenhum paciente encontrado.
+              </td>
+            </tr>
+            <tr v-for="patient in patients" :key="patient.id" class="hover:bg-slate-50">
+              <td class="px-4 py-3">
+                <strong class="text-[#0F172A]">{{ patient.nome }}</strong>
+                <p class="text-xs text-slate-500">{{ patient.email || 'Sem e-mail' }}</p>
+              </td>
+              <td class="px-4 py-3 text-slate-600">{{ formatCpf(patient.cpf) }}</td>
+              <td class="px-4 py-3 text-slate-600">{{ formatPhone(patient.telefone ?? '') }}</td>
+              <td class="px-4 py-3 text-slate-600">{{ patient.convenio || 'Particular' }}</td>
+              <td class="px-4 py-3 text-slate-600">{{ patient.cidade || '-' }}</td>
+              <td class="px-4 py-3">
+                <AppBadge :tone="patient.ativo ? 'success' : 'danger'">
+                  {{ patient.ativo ? 'Ativo' : 'Inativo' }}
+                </AppBadge>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <button class="mr-1 inline-grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-100" title="Ver detalhes" @click="openDetailsModal(patient)">
+                  <Eye class="h-4 w-4" />
+                </button>
+                <button class="mr-1 inline-grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-100" title="Editar paciente" @click="openEditModal(patient)">
+                  <Pencil class="h-4 w-4" />
+                </button>
+                <button class="inline-grid h-9 w-9 place-items-center rounded-lg text-rose-600 hover:bg-rose-50" title="Remover paciente" @click="openDeleteModal(patient)">
+                  <Trash2 class="h-4 w-4" />
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </AppTable>
+      </div>
+    </template>
 
     <AppModal
       :open="modalOpen"
@@ -449,7 +490,7 @@ watch(() => form.numero, (value) => {
       @close="closeModal"
     >
       <form class="grid gap-4" @submit.prevent="submit">
-        <div class="grid gap-4 md:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-2">
           <AppInput v-model="form.nome" label="Nome" :error="formErrors.nome" required />
           <AppInput v-model="form.cpf" label="CPF" :error="formErrors.cpf" inputmode="numeric" :maxlength="14" required />
           <AppInput v-model="form.telefone" label="Telefone" :error="formErrors.telefone" inputmode="tel" :maxlength="15" />
@@ -493,9 +534,9 @@ watch(() => form.numero, (value) => {
           />
         </label>
 
-        <div class="flex justify-end gap-2 border-t border-[#E2E8F0] pt-4">
-          <AppButton variant="secondary" @click="closeModal">Cancelar</AppButton>
-          <AppButton type="submit" :disabled="!canSubmit">
+        <div class="flex flex-col-reverse gap-2 border-t border-[#E2E8F0] pt-4 sm:flex-row sm:justify-end">
+          <AppButton class="w-full sm:w-auto" variant="secondary" @click="closeModal">Cancelar</AppButton>
+          <AppButton class="w-full sm:w-auto" type="submit" :disabled="!canSubmit">
             {{ saving ? 'Salvando...' : editingPatientId ? 'Atualizar paciente' : 'Salvar paciente' }}
           </AppButton>
         </div>
@@ -514,7 +555,7 @@ watch(() => form.numero, (value) => {
           </AppBadge>
         </div>
 
-        <div class="grid gap-4 md:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-2">
           <div class="rounded-lg bg-slate-50 p-4">
             <span class="text-xs font-semibold uppercase text-slate-500">CPF</span>
             <p class="mt-1 text-sm font-medium text-[#0F172A]">{{ selectedPatient.cpf }}</p>
@@ -535,12 +576,12 @@ watch(() => form.numero, (value) => {
 
         <div>
           <h3 class="mb-3 text-sm font-semibold text-[#0F172A]">Endereço</h3>
-          <div class="grid gap-4 md:grid-cols-3">
+          <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             <div class="rounded-lg bg-slate-50 p-4">
               <span class="text-xs font-semibold uppercase text-slate-500">CEP</span>
               <p class="mt-1 text-sm font-medium text-[#0F172A]">{{ selectedPatient.cep || '-' }}</p>
             </div>
-            <div class="rounded-lg bg-slate-50 p-4 md:col-span-2">
+            <div class="rounded-lg bg-slate-50 p-4 sm:col-span-2">
               <span class="text-xs font-semibold uppercase text-slate-500">Logradouro</span>
               <p class="mt-1 text-sm font-medium text-[#0F172A]">
                 {{ selectedPatient.endereco || '-' }}
@@ -569,9 +610,9 @@ watch(() => form.numero, (value) => {
           </p>
         </div>
 
-        <div class="flex justify-end gap-2 border-t border-[#E2E8F0] pt-4">
-          <AppButton variant="secondary" @click="closeDetailsModal">Fechar</AppButton>
-          <AppButton @click="editSelectedPatient">
+        <div class="flex flex-col-reverse gap-2 border-t border-[#E2E8F0] pt-4 sm:flex-row sm:justify-end">
+          <AppButton class="w-full sm:w-auto" variant="secondary" @click="closeDetailsModal">Fechar</AppButton>
+          <AppButton class="w-full sm:w-auto" @click="editSelectedPatient">
             Editar paciente
           </AppButton>
         </div>
@@ -590,9 +631,9 @@ watch(() => form.numero, (value) => {
           <span class="text-sm text-slate-500">CPF {{ patientPendingDeletion.cpf }}</span>
         </div>
 
-        <div class="flex justify-end gap-2 border-t border-[#E2E8F0] pt-4">
-          <AppButton variant="secondary" :disabled="deleting" @click="closeDeleteModal">Cancelar</AppButton>
-          <AppButton variant="danger" :disabled="deleting" @click="confirmDeletePatient">
+        <div class="flex flex-col-reverse gap-2 border-t border-[#E2E8F0] pt-4 sm:flex-row sm:justify-end">
+          <AppButton class="w-full sm:w-auto" variant="secondary" :disabled="deleting" @click="closeDeleteModal">Cancelar</AppButton>
+          <AppButton class="w-full sm:w-auto" variant="danger" :disabled="deleting" @click="confirmDeletePatient">
             {{ deleting ? 'Removendo...' : 'Remover paciente' }}
           </AppButton>
         </div>

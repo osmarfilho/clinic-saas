@@ -27,7 +27,7 @@ const iconClasses: Record<Accent, string> = {
       <component :is="icon" class="h-4 w-4" />
     </span>
     <div class="min-w-0 flex-1">
-      <div class="flex items-start justify-between gap-3">
+      <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
         <strong class="truncate text-sm font-semibold text-foreground">{{ title }}</strong>
         <span class="shrink-0 text-xs text-muted">{{ time }}</span>
       </div>

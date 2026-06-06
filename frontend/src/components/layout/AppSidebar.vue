@@ -38,7 +38,7 @@ const items = [
   />
 
   <aside
-    class="fixed inset-y-0 left-0 z-50 flex w-[260px] flex-col border-r border-border bg-surface px-4 py-5 shadow-sm transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:min-h-screen lg:translate-x-0"
+    class="fixed inset-y-0 left-0 z-50 flex w-[min(280px,calc(100vw-24px))] flex-col overflow-y-auto border-r border-border bg-surface px-4 py-5 shadow-sm transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:min-h-screen lg:w-[260px] lg:translate-x-0"
     :class="mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
     aria-label="Navegação principal"
   >
@@ -76,7 +76,7 @@ const items = [
       </RouterLink>
     </nav>
 
-    <div class="mt-auto rounded-2xl border border-border bg-surface-muted p-4">
+    <div class="mt-auto hidden rounded-2xl border border-border bg-surface-muted p-4 sm:block">
       <span class="grid h-9 w-9 place-items-center rounded-xl bg-brand-soft text-brand-strong">
         <Headphones class="h-4 w-4" />
       </span>

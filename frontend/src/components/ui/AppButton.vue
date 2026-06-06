@@ -17,7 +17,7 @@ withDefaults(
   <button
     :type="type"
     :disabled="disabled"
-    class="inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+    class="inline-flex h-10 min-w-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
     :class="{
       'bg-[#6FF6A5] text-[#0F172A] shadow-sm hover:bg-[#5DE091]': variant === 'primary',
       'border border-[#E2E8F0] bg-white text-[#0F172A] hover:bg-slate-50': variant === 'secondary',

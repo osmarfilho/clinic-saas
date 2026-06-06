@@ -46,7 +46,7 @@ watch(() => route.fullPath, loadNotifications)
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-border bg-surface/90 px-4 backdrop-blur-xl lg:px-6">
+  <header class="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-3 border-b border-border bg-surface/90 px-3 py-3 backdrop-blur-xl sm:px-4 lg:px-6">
     <div class="flex min-w-0 flex-1 items-center gap-3">
       <button
         class="grid h-10 w-10 place-items-center rounded-xl border border-border text-muted hover:bg-surface-muted lg:hidden"
@@ -57,7 +57,7 @@ watch(() => route.fullPath, loadNotifications)
         <Menu class="h-5 w-5" />
       </button>
 
-      <label v-if="showGlobalSearch" class="relative w-full max-w-xl">
+      <label v-if="showGlobalSearch" class="relative hidden w-full max-w-xl sm:block">
         <Search class="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
         <span class="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-semibold text-muted sm:inline-flex">
           ⌘K
@@ -70,7 +70,7 @@ watch(() => route.fullPath, loadNotifications)
       </label>
     </div>
 
-    <div class="ml-4 flex items-center gap-2">
+    <div class="ml-auto flex shrink-0 items-center gap-2">
       <button
         class="relative grid h-10 w-10 place-items-center rounded-xl border border-border text-muted transition hover:bg-surface-muted hover:text-foreground"
         title="Notificações"

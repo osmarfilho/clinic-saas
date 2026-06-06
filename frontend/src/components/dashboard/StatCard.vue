@@ -68,7 +68,7 @@ const areaPath = computed(() => `${linePath.value} L 160 58 L 0 58 Z`)
 
 <template>
   <section
-    class="group rounded-2xl border border-border bg-surface p-6 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-md"
+    class="group rounded-2xl border border-border bg-surface p-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-md sm:p-6"
   >
     <div v-if="loading" class="animate-pulse">
       <div class="h-11 w-11 rounded-full bg-surface-muted" />
@@ -94,7 +94,7 @@ const areaPath = computed(() => `${linePath.value} L 160 58 L 0 58 Z`)
 
       <div class="mt-5">
         <p class="text-sm font-medium text-muted">{{ label }}</p>
-        <strong class="mt-2 block text-3xl font-bold tracking-tight text-foreground">{{ value }}</strong>
+        <strong class="mt-2 block text-2xl font-bold tracking-tight text-foreground sm:text-3xl">{{ value }}</strong>
         <p class="mt-2 text-xs text-muted">{{ helper }}</p>
       </div>
 

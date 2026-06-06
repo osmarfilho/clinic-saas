@@ -148,7 +148,7 @@ onMounted(loadDashboard)
       {{ error }}
     </p>
 
-    <section class="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+    <section class="grid gap-4 sm:grid-cols-2 lg:gap-6 xl:grid-cols-4">
       <StatCard
         v-for="stat in stats"
         :key="stat.label"
@@ -163,10 +163,10 @@ onMounted(loadDashboard)
       />
     </section>
 
-    <section class="mt-6 grid gap-6 xl:grid-cols-[2fr_1fr]">
-      <section class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
-        <header class="mb-5 flex items-center justify-between gap-4">
-          <div class="flex items-center gap-3">
+    <section class="mt-6 grid gap-4 lg:gap-6 xl:grid-cols-[2fr_1fr]">
+      <section class="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
+        <header class="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex min-w-0 items-center gap-3">
             <span class="grid h-9 w-9 place-items-center rounded-xl bg-surface-muted text-muted">
               <CalendarDays class="h-4 w-4" />
             </span>
@@ -177,7 +177,7 @@ onMounted(loadDashboard)
           </div>
           <RouterLink
             to="/agenda"
-            class="rounded-[10px] border border-border px-3 py-2 text-sm font-semibold text-foreground transition hover:bg-surface-muted"
+            class="inline-flex h-10 w-full items-center justify-center rounded-[10px] border border-border px-3 text-sm font-semibold text-foreground transition hover:bg-surface-muted sm:w-auto"
           >
             Ver agenda completa
           </RouterLink>
@@ -210,8 +210,8 @@ onMounted(loadDashboard)
         </div>
       </section>
 
-      <div class="grid gap-6">
-        <section class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+      <div class="grid gap-4 lg:gap-6">
+        <section class="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <header class="mb-5 flex items-center justify-between">
             <div class="flex items-center gap-3">
               <span class="grid h-9 w-9 place-items-center rounded-xl bg-surface-muted text-muted">
@@ -236,7 +236,7 @@ onMounted(loadDashboard)
           </div>
         </section>
 
-        <section class="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+        <section class="rounded-2xl border border-border bg-surface p-4 shadow-sm sm:p-6">
           <header class="mb-5 flex items-center gap-3">
             <span class="grid h-9 w-9 place-items-center rounded-xl bg-surface-muted text-muted">
               <Clock3 class="h-4 w-4" />

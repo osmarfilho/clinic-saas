@@ -39,12 +39,12 @@ function initials(name: string) {
 </script>
 
 <template>
-  <article class="grid grid-cols-[64px_1fr_auto] items-center gap-4 rounded-2xl px-3 py-3 transition duration-200 hover:bg-surface-muted">
+  <article class="grid gap-3 rounded-2xl px-3 py-3 transition duration-200 hover:bg-surface-muted sm:grid-cols-[64px_1fr_auto] sm:items-center sm:gap-4">
     <div class="text-sm font-semibold text-muted">{{ time }}</div>
 
     <div class="relative flex items-center gap-3">
-      <span class="absolute -left-6 h-full w-px bg-border" aria-hidden="true" />
-      <span class="absolute -left-[27px] h-2.5 w-2.5 rounded-full ring-4 ring-surface" :class="dotClasses[status]" aria-hidden="true" />
+      <span class="absolute -left-6 hidden h-full w-px bg-border sm:block" aria-hidden="true" />
+      <span class="absolute -left-[27px] hidden h-2.5 w-2.5 rounded-full ring-4 ring-surface sm:block" :class="dotClasses[status]" aria-hidden="true" />
       <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand-soft text-sm font-bold text-brand-strong">
         {{ initials(props.patientName) }}
       </span>
@@ -54,7 +54,7 @@ function initials(name: string) {
       </div>
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="flex items-center justify-between gap-2 sm:justify-start">
       <span class="rounded-xl px-2.5 py-1 text-xs font-semibold" :class="tagClasses[category] ?? 'bg-surface-muted text-muted'">
         {{ category }}
       </span>
