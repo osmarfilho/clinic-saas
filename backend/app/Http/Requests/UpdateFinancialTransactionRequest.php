@@ -20,14 +20,21 @@ class UpdateFinancialTransactionRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('access finance') ?? false;
     }
 
     public function rules(): array
     {
         return [
-            'patient_id' => ['nullable', 'required_if:type,income', 'exists:patients,id'],
-            'appointment_id' => ['nullable', 'exists:appointments,id'],
+            'patient_id' => [
+                'nullable',
+                'required_if:type,income',
+                Rule::exists('patients', 'id')->where('clinic_id', $this->user()?->clinic_id),
+            ],
+            'appointment_id' => [
+                'nullable',
+                Rule::exists('appointments', 'id')->where('clinic_id', $this->user()?->clinic_id),
+            ],
             'description' => ['sometimes', 'required', 'string', 'max:255'],
             'type' => ['sometimes', 'required', Rule::in(['income', 'expense'])],
             'category' => ['nullable', 'string', 'max:120'],

@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePatientRequest extends FormRequest
 {
@@ -19,14 +20,19 @@ class StorePatientRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('manage patients') ?? false;
     }
 
     public function rules(): array
     {
         return [
             'nome' => ['required', 'string', 'max:255'],
-            'cpf' => ['required', 'string', 'digits:11', 'unique:patients,cpf'],
+            'cpf' => [
+                'required',
+                'string',
+                'digits:11',
+                Rule::unique('patients', 'cpf')->where('clinic_id', $this->user()?->clinic_id),
+            ],
             'telefone' => ['nullable', 'string', 'digits_between:10,11'],
             'email' => ['nullable', 'email', 'max:255'],
             'data_nascimento' => ['nullable', 'date'],

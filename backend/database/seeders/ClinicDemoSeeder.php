@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Appointment;
+use App\Models\Clinic;
 use App\Models\ClinicNotification;
 use App\Models\ClinicSetting;
 use App\Models\FinancialTransaction;
@@ -10,30 +11,46 @@ use App\Models\Patient;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
 class ClinicDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $adminRole = Role::firstOrCreate([
-            'name' => 'admin',
-            'guard_name' => 'web',
+        $clinic = Clinic::firstOrCreate([
+            'name' => 'Clinic SaaS',
+        ], [
+            'document' => '12.345.678/0001-90',
+            'phone' => '(85) 3333-0000',
+            'email' => 'contato@clinic.test',
+            'active' => true,
         ]);
 
-        $admin = User::updateOrCreate(
-            ['email' => 'admin@clinic.test'],
-            [
-                'name' => 'Admin',
-                'password' => Hash::make('123456'),
-            ],
-        );
+        $admin = null;
+        $demoEmail = env('DEMO_ADMIN_EMAIL');
+        $demoPassword = env('DEMO_ADMIN_PASSWORD');
 
-        $admin->assignRole($adminRole);
+        if (app()->environment('local') && $demoEmail && $demoPassword) {
+            $adminRole = Role::firstOrCreate([
+                'name' => 'Admin da Clínica',
+                'guard_name' => 'web',
+            ]);
+
+            $admin = User::updateOrCreate(
+                ['email' => $demoEmail],
+                [
+                    'clinic_id' => $clinic->id,
+                    'name' => 'Admin',
+                    'password' => $demoPassword,
+                ],
+            );
+
+            $admin->syncRoles(['Super Admin']);
+        }
 
         $patients = collect([
             [
+                'clinic_id' => $clinic->id,
                 'nome' => 'Maria Souza',
                 'cpf' => '12345678901',
                 'telefone' => '11988887777',
@@ -50,6 +67,7 @@ class ClinicDemoSeeder extends Seeder
                 'ativo' => true,
             ],
             [
+                'clinic_id' => $clinic->id,
                 'nome' => 'João Martins',
                 'cpf' => '98765432100',
                 'telefone' => '85999990000',
@@ -62,6 +80,7 @@ class ClinicDemoSeeder extends Seeder
                 'ativo' => true,
             ],
             [
+                'clinic_id' => $clinic->id,
                 'nome' => 'Aline Rocha',
                 'cpf' => '45678912300',
                 'telefone' => '81988776655',
@@ -74,6 +93,7 @@ class ClinicDemoSeeder extends Seeder
                 'ativo' => true,
             ],
             [
+                'clinic_id' => $clinic->id,
                 'nome' => 'Carlos Lima',
                 'cpf' => '32165498700',
                 'telefone' => '71987654321',
@@ -85,13 +105,17 @@ class ClinicDemoSeeder extends Seeder
                 'observacoes' => 'Atendimento por teleconsulta.',
                 'ativo' => true,
             ],
-        ])->map(fn (array $data) => Patient::updateOrCreate(['cpf' => $data['cpf']], $data));
+        ])->map(fn (array $data) => Patient::updateOrCreate([
+            'clinic_id' => $clinic->id,
+            'cpf' => $data['cpf'],
+        ], $data));
 
         $today = Carbon::today();
 
         $appointments = [
             [
                 'patient_id' => $patients[0]->id,
+                'clinic_id' => $clinic->id,
                 'title' => 'Retorno de Maria Souza',
                 'professional' => 'Dra. Paula Fernandes',
                 'type' => 'Retorno',
@@ -103,6 +127,7 @@ class ClinicDemoSeeder extends Seeder
             ],
             [
                 'patient_id' => $patients[1]->id,
+                'clinic_id' => $clinic->id,
                 'title' => 'Consulta de João Martins',
                 'professional' => 'Dr. Paulo Nogueira',
                 'type' => 'Consulta',
@@ -114,6 +139,7 @@ class ClinicDemoSeeder extends Seeder
             ],
             [
                 'patient_id' => $patients[2]->id,
+                'clinic_id' => $clinic->id,
                 'title' => 'Exame de Aline Rocha',
                 'professional' => 'Dra. Renata Alves',
                 'type' => 'Exame',
@@ -125,6 +151,7 @@ class ClinicDemoSeeder extends Seeder
             ],
             [
                 'patient_id' => $patients[3]->id,
+                'clinic_id' => $clinic->id,
                 'title' => 'Teleconsulta de Carlos Lima',
                 'professional' => 'Dr. Paulo Nogueira',
                 'type' => 'Teleconsulta',
@@ -136,6 +163,7 @@ class ClinicDemoSeeder extends Seeder
             ],
             [
                 'patient_id' => $patients[0]->id,
+                'clinic_id' => $clinic->id,
                 'title' => 'Consulta de revisão',
                 'professional' => 'Dra. Paula Fernandes',
                 'type' => 'Consulta',
@@ -147,20 +175,22 @@ class ClinicDemoSeeder extends Seeder
             ],
         ];
 
-        $createdAppointments = collect($appointments)->map(function (array $data) {
+        $createdAppointments = collect($appointments)->map(function (array $data) use ($clinic) {
             return Appointment::updateOrCreate(
-                [
-                    'patient_id' => $data['patient_id'],
-                    'starts_at' => $data['starts_at'],
-                    'title' => $data['title'],
-                ],
-                $data,
-            );
-        });
+            [
+                'patient_id' => $data['patient_id'],
+                'clinic_id' => $clinic->id,
+                'starts_at' => $data['starts_at'],
+                'title' => $data['title'],
+            ],
+            $data,
+        );
+    });
 
         $transactions = [
             [
                 'patient_id' => $patients[0]->id,
+                'clinic_id' => $clinic->id,
                 'appointment_id' => $createdAppointments[0]->id,
                 'description' => 'Consulta Maria Souza',
                 'type' => 'income',
@@ -174,6 +204,7 @@ class ClinicDemoSeeder extends Seeder
             ],
             [
                 'patient_id' => $patients[1]->id,
+                'clinic_id' => $clinic->id,
                 'appointment_id' => $createdAppointments[1]->id,
                 'description' => 'Consulta João Martins',
                 'type' => 'income',
@@ -187,6 +218,7 @@ class ClinicDemoSeeder extends Seeder
             ],
             [
                 'patient_id' => null,
+                'clinic_id' => $clinic->id,
                 'appointment_id' => null,
                 'description' => 'Aluguel da clínica',
                 'type' => 'expense',
@@ -200,6 +232,7 @@ class ClinicDemoSeeder extends Seeder
             ],
             [
                 'patient_id' => null,
+                'clinic_id' => $clinic->id,
                 'appointment_id' => null,
                 'description' => 'Materiais médicos',
                 'type' => 'expense',
@@ -217,6 +250,7 @@ class ClinicDemoSeeder extends Seeder
             FinancialTransaction::updateOrCreate(
                 [
                     'description' => $data['description'],
+                    'clinic_id' => $clinic->id,
                     'due_date' => $data['due_date'],
                     'amount' => $data['amount'],
                 ],
@@ -239,7 +273,7 @@ class ClinicDemoSeeder extends Seeder
         ];
 
         foreach ($settings as $key => $value) {
-            ClinicSetting::updateOrCreate(['key' => $key], ['value' => $value]);
+            ClinicSetting::updateOrCreate(['clinic_id' => $clinic->id, 'key' => $key], ['value' => $value]);
         }
 
         foreach ([
@@ -249,7 +283,7 @@ class ClinicDemoSeeder extends Seeder
         ] as $notification) {
             ClinicNotification::firstOrCreate(
                 ['title' => $notification['title'], 'body' => $notification['body']],
-                [...$notification, 'user_id' => $admin->id],
+                [...$notification, 'clinic_id' => $clinic->id, 'user_id' => $admin?->id],
             );
         }
     }

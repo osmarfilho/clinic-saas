@@ -28,7 +28,7 @@ class UpdatePatientRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('manage patients') ?? false;
     }
 
     public function rules(): array
@@ -37,7 +37,15 @@ class UpdatePatientRequest extends FormRequest
 
         return [
             'nome' => ['sometimes', 'required', 'string', 'max:255'],
-            'cpf' => ['sometimes', 'required', 'string', 'digits:11', Rule::unique('patients', 'cpf')->ignore($patientId)],
+            'cpf' => [
+                'sometimes',
+                'required',
+                'string',
+                'digits:11',
+                Rule::unique('patients', 'cpf')
+                    ->where('clinic_id', $this->user()?->clinic_id)
+                    ->ignore($patientId),
+            ],
             'telefone' => ['nullable', 'string', 'digits_between:10,11'],
             'email' => ['nullable', 'email', 'max:255'],
             'data_nascimento' => ['nullable', 'date'],

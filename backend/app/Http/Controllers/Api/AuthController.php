@@ -4,45 +4,20 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
-use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
     public function register(Request $request): JsonResponse
     {
-        $dados = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email'],
-            'password' => ['required', 'string', 'min:6'],
-        ]);
-
-        $usuario = User::create([
-            'name' => $dados['name'],
-            'email' => $dados['email'],
-            'password' => Hash::make($dados['password']),
-        ]);
-
-        Role::firstOrCreate([
-            'name' => 'admin',
-            'guard_name' => 'web',
-        ]);
-
-        $usuario->assignRole('admin');
-
-        $token = $usuario->createToken('clinic-token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Usuário cadastrado com sucesso.',
-            'user' => $usuario,
-            'token' => $token,
-        ], 201);
+        abort(404);
     }
 
-    public function login(Request $request): JsonResponse
+    public function login(Request $request, AuditLogger $audit): JsonResponse
     {
         $dados = $request->validate([
             'email' => ['required', 'email'],
@@ -58,6 +33,8 @@ class AuthController extends Controller
         }
 
         $token = $usuario->createToken('clinic-token')->plainTextToken;
+        $request->setUserResolver(fn () => $usuario);
+        $audit->log($request, 'auth.login');
 
         return response()->json([
             'message' => 'Login realizado com sucesso.',
@@ -69,12 +46,13 @@ class AuthController extends Controller
     public function me(Request $request): JsonResponse
     {
         return response()->json([
-            'user' => $request->user()->load('roles', 'permissions'),
+            'user' => $request->user()->load('clinic', 'roles', 'permissions'),
         ]);
     }
 
-    public function logout(Request $request): JsonResponse
+    public function logout(Request $request, AuditLogger $audit): JsonResponse
     {
+        $audit->log($request, 'auth.logout');
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([

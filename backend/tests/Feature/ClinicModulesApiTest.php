@@ -6,9 +6,7 @@ use App\Models\Appointment;
 use App\Models\ClinicNotification;
 use App\Models\FinancialTransaction;
 use App\Models\Patient;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ClinicModulesApiTest extends TestCase
@@ -23,7 +21,7 @@ class ClinicModulesApiTest extends TestCase
 
     public function test_authenticated_user_can_manage_appointments(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
         $patient = Patient::create($this->patientPayload());
 
         $response = $this->postJson('/api/appointments', [
@@ -58,7 +56,7 @@ class ClinicModulesApiTest extends TestCase
 
     public function test_appointment_validation_blocks_past_dates_and_schedule_conflicts(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
         $patient = Patient::create($this->patientPayload());
 
         $this->postJson('/api/appointments', [
@@ -101,8 +99,7 @@ class ClinicModulesApiTest extends TestCase
 
     public function test_canceling_appointment_creates_notification(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $user = $this->actingAsClinicRole();
         $patient = Patient::create($this->patientPayload());
         $appointment = Appointment::create([
             'patient_id' => $patient->id,
@@ -131,7 +128,7 @@ class ClinicModulesApiTest extends TestCase
 
     public function test_authenticated_user_can_manage_financial_transactions_and_dashboard(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
         $patient = Patient::create($this->patientPayload());
         $appointment = Appointment::create([
             'patient_id' => $patient->id,
@@ -165,7 +162,7 @@ class ClinicModulesApiTest extends TestCase
 
     public function test_financial_summary_separates_paid_and_pending_totals(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
         $patient = Patient::create($this->patientPayload());
 
         FinancialTransaction::create([
@@ -213,8 +210,7 @@ class ClinicModulesApiTest extends TestCase
 
     public function test_financial_validation_and_notifications(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $user = $this->actingAsClinicRole();
         $patient = Patient::create($this->patientPayload());
 
         $this->postJson('/api/financial-transactions', [
@@ -264,8 +260,7 @@ class ClinicModulesApiTest extends TestCase
 
     public function test_authenticated_user_can_update_settings_and_read_notifications(): void
     {
-        $user = User::factory()->create();
-        Sanctum::actingAs($user);
+        $user = $this->actingAsClinicRole();
 
         $this->putJson('/api/settings', [
             'clinic_name' => 'Clínica Teste',

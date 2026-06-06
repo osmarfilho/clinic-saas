@@ -7,6 +7,7 @@ use App\Http\Requests\StorePatientRequest;
 use App\Http\Requests\UpdatePatientRequest;
 use App\Models\ClinicNotification;
 use App\Models\Patient;
+use App\Services\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -39,9 +40,10 @@ class PatientController extends Controller
         return response()->json($patients);
     }
 
-    public function store(StorePatientRequest $request): JsonResponse
+    public function store(StorePatientRequest $request, AuditLogger $audit): JsonResponse
     {
         $patient = Patient::create($request->validated());
+        $audit->log($request, 'patient.created', $patient);
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
@@ -56,14 +58,19 @@ class PatientController extends Controller
 
     public function show(Patient $patient): JsonResponse
     {
+        $this->authorize('view', $patient);
+
         return response()->json($patient);
     }
 
-    public function update(UpdatePatientRequest $request, Patient $patient): JsonResponse
+    public function update(UpdatePatientRequest $request, Patient $patient, AuditLogger $audit): JsonResponse
     {
+        $this->authorize('update', $patient);
+
         $patient->fill($request->validated());
         $changedFields = array_keys($patient->getDirty());
         $patient->save();
+        $audit->log($request, 'patient.updated', $patient, ['changed_fields' => $changedFields]);
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
@@ -76,8 +83,12 @@ class PatientController extends Controller
         return response()->json($patient->refresh());
     }
 
-    public function destroy(Request $request, Patient $patient): JsonResponse
+    public function destroy(Request $request, Patient $patient, AuditLogger $audit): JsonResponse
     {
+        $this->authorize('delete', $patient);
+
+        $audit->log($request, 'patient.deleted', $patient);
+
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
             'title' => 'Paciente removido',
@@ -93,10 +104,12 @@ class PatientController extends Controller
         ]);
     }
 
-    public function restore(Request $request, int $patient): JsonResponse
+    public function restore(Request $request, int $patient, AuditLogger $audit): JsonResponse
     {
         $patientModel = Patient::withTrashed()->findOrFail($patient);
+        $this->authorize('restore', $patientModel);
         $patientModel->restore();
+        $audit->log($request, 'patient.restored', $patientModel);
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,

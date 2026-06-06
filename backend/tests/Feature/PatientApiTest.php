@@ -3,9 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Patient;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class PatientApiTest extends TestCase
@@ -20,7 +18,7 @@ class PatientApiTest extends TestCase
 
     public function test_authenticated_user_can_create_and_list_patients(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
 
         $payload = $this->patientPayload();
 
@@ -49,7 +47,7 @@ class PatientApiTest extends TestCase
 
     public function test_authenticated_user_can_update_patient(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
 
         $patient = Patient::create($this->patientPayload());
 
@@ -77,7 +75,7 @@ class PatientApiTest extends TestCase
 
     public function test_patient_validation_requires_name_and_unique_cpf(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
 
         Patient::create($this->patientPayload());
 
@@ -91,7 +89,7 @@ class PatientApiTest extends TestCase
 
     public function test_patient_cpf_and_phone_must_be_numeric_with_expected_lengths(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
 
         $this->postJson('/api/patients', [
             ...$this->patientPayload(),
@@ -113,7 +111,7 @@ class PatientApiTest extends TestCase
 
     public function test_patient_address_number_must_be_positive_integer(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
 
         $this->postJson('/api/patients', [
             ...$this->patientPayload(),
@@ -133,7 +131,7 @@ class PatientApiTest extends TestCase
 
     public function test_authenticated_user_can_soft_delete_patient(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
 
         $patient = Patient::create($this->patientPayload());
 
@@ -153,7 +151,7 @@ class PatientApiTest extends TestCase
 
     public function test_authenticated_user_can_restore_patient(): void
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->actingAsClinicRole();
 
         $patient = Patient::create($this->patientPayload());
         $patient->delete();

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\ClinicNotification;
+use App\Services\AuditLogger;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,12 +36,13 @@ class AppointmentController extends Controller
         return response()->json($appointments);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, AuditLogger $audit): JsonResponse
     {
         $data = $this->validatedData($request);
         $this->ensureScheduleIsAvailable($data);
 
         $appointment = Appointment::create($data);
+        $audit->log($request, 'appointment.created', $appointment);
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
@@ -55,11 +57,15 @@ class AppointmentController extends Controller
 
     public function show(Appointment $appointment): JsonResponse
     {
+        $this->authorize('view', $appointment);
+
         return response()->json($appointment->load('patient:id,nome,cpf,telefone,email'));
     }
 
-    public function update(Request $request, Appointment $appointment): JsonResponse
+    public function update(Request $request, Appointment $appointment, AuditLogger $audit): JsonResponse
     {
+        $this->authorize('update', $appointment);
+
         $data = $this->validatedData($request, true);
         $this->ensureScheduleIsAvailable($data, $appointment);
 
@@ -67,6 +73,9 @@ class AppointmentController extends Controller
         $appointment->update($data);
         $changedFields = array_keys($appointment->getChanges());
         $wasCanceled = $appointment->status === 'canceled' && $original->status !== 'canceled';
+        $audit->log($request, $wasCanceled ? 'appointment.canceled' : 'appointment.updated', $appointment, [
+            'changed_fields' => $changedFields,
+        ]);
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
@@ -81,8 +90,12 @@ class AppointmentController extends Controller
         return response()->json($appointment->refresh()->load('patient:id,nome,cpf,telefone,email'));
     }
 
-    public function destroy(Request $request, Appointment $appointment): JsonResponse
+    public function destroy(Request $request, Appointment $appointment, AuditLogger $audit): JsonResponse
     {
+        $this->authorize('delete', $appointment);
+
+        $audit->log($request, 'appointment.deleted', $appointment);
+
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
             'title' => 'Consulta cancelada',
@@ -103,7 +116,10 @@ class AppointmentController extends Controller
         $required = $partial ? 'sometimes' : 'required';
 
         return $request->validate([
-            'patient_id' => ['nullable', 'exists:patients,id'],
+            'patient_id' => [
+                'nullable',
+                Rule::exists('patients', 'id')->where('clinic_id', $request->user()?->clinic_id),
+            ],
             'title' => [$required, 'string', 'max:255'],
             'professional' => ['nullable', 'string', 'max:255'],
             'type' => [$required, 'string', 'max:80'],

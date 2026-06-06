@@ -33,7 +33,7 @@ class ClinicNotificationController extends Controller
 
     public function markAsRead(Request $request, ClinicNotification $notification): JsonResponse
     {
-        abort_unless($notification->user_id === null || $notification->user_id === $request->user()?->id, 403);
+        $this->authorize('view', $notification);
 
         $notification->update(['read_at' => now()]);
 

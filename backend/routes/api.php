@@ -10,7 +10,7 @@ use App\Http\Controllers\Api\PatientController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:login');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/me', [AuthController::class, 'me']);
@@ -19,14 +19,18 @@ Route::prefix('auth')->group(function () {
 });
 
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('dashboard', DashboardController::class);
-    Route::post('patients/restore/{patient}', [PatientController::class, 'restore']);
-    Route::apiResource('patients', PatientController::class);
-    Route::apiResource('appointments', AppointmentController::class);
-    Route::apiResource('financial-transactions', FinancialTransactionController::class);
-    Route::get('settings', [ClinicSettingController::class, 'show']);
-    Route::put('settings', [ClinicSettingController::class, 'update']);
-    Route::get('notifications', [ClinicNotificationController::class, 'index']);
-    Route::post('notifications/read-all', [ClinicNotificationController::class, 'markAllAsRead']);
-    Route::post('notifications/{notification}/read', [ClinicNotificationController::class, 'markAsRead']);
+    Route::get('dashboard', DashboardController::class)->middleware('can:view dashboard');
+    Route::get('patients', [PatientController::class, 'index'])->middleware('can:view patients');
+    Route::post('patients', [PatientController::class, 'store'])->middleware('can:manage patients');
+    Route::get('patients/{patient}', [PatientController::class, 'show'])->middleware('can:view patients');
+    Route::put('patients/{patient}', [PatientController::class, 'update'])->middleware('can:manage patients');
+    Route::delete('patients/{patient}', [PatientController::class, 'destroy'])->middleware('can:manage patients');
+    Route::post('patients/restore/{patient}', [PatientController::class, 'restore'])->middleware('can:manage patients');
+    Route::apiResource('appointments', AppointmentController::class)->middleware('can:manage appointments');
+    Route::apiResource('financial-transactions', FinancialTransactionController::class)->middleware('can:access finance');
+    Route::get('settings', [ClinicSettingController::class, 'show'])->middleware('can:manage clinic settings');
+    Route::put('settings', [ClinicSettingController::class, 'update'])->middleware('can:manage clinic settings');
+    Route::get('notifications', [ClinicNotificationController::class, 'index'])->middleware('can:view notifications');
+    Route::post('notifications/read-all', [ClinicNotificationController::class, 'markAllAsRead'])->middleware('can:view notifications');
+    Route::post('notifications/{notification}/read', [ClinicNotificationController::class, 'markAsRead'])->middleware('can:view notifications');
 });

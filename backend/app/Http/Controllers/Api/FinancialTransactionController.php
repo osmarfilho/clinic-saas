@@ -7,6 +7,7 @@ use App\Http\Requests\StoreFinancialTransactionRequest;
 use App\Http\Requests\UpdateFinancialTransactionRequest;
 use App\Models\ClinicNotification;
 use App\Models\FinancialTransaction;
+use App\Services\AuditLogger;
 use App\Services\FinancialSummaryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,9 +39,10 @@ class FinancialTransactionController extends Controller
         ]);
     }
 
-    public function store(StoreFinancialTransactionRequest $request): JsonResponse
+    public function store(StoreFinancialTransactionRequest $request, AuditLogger $audit): JsonResponse
     {
         $transaction = FinancialTransaction::create($request->validated());
+        $audit->log($request, 'financial_transaction.created', $transaction);
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
@@ -67,15 +69,22 @@ class FinancialTransactionController extends Controller
 
     public function show(FinancialTransaction $financialTransaction): JsonResponse
     {
+        $this->authorize('view', $financialTransaction);
+
         return response()->json($financialTransaction->load('patient:id,nome,cpf,email', 'appointment:id,title,starts_at'));
     }
 
-    public function update(UpdateFinancialTransactionRequest $request, FinancialTransaction $financialTransaction): JsonResponse
+    public function update(UpdateFinancialTransactionRequest $request, FinancialTransaction $financialTransaction, AuditLogger $audit): JsonResponse
     {
+        $this->authorize('update', $financialTransaction);
+
         $previousStatus = $financialTransaction->status;
         $financialTransaction->fill($request->validated());
         $changedFields = array_keys($financialTransaction->getDirty());
         $financialTransaction->save();
+        $audit->log($request, 'financial_transaction.updated', $financialTransaction, [
+            'changed_fields' => $changedFields,
+        ]);
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
@@ -100,8 +109,12 @@ class FinancialTransactionController extends Controller
         return response()->json($financialTransaction->refresh()->load('patient:id,nome,cpf,email', 'appointment:id,title,starts_at'));
     }
 
-    public function destroy(Request $request, FinancialTransaction $financialTransaction): JsonResponse
+    public function destroy(Request $request, FinancialTransaction $financialTransaction, AuditLogger $audit): JsonResponse
     {
+        $this->authorize('delete', $financialTransaction);
+
+        $audit->log($request, 'financial_transaction.deleted', $financialTransaction);
+
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
             'title' => 'Lançamento financeiro removido',
