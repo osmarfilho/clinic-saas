@@ -1,77 +1,351 @@
-# Clinic SaaS - Agent Instructions
+# Clinic SaaS - Engineering Standards
 
-## Projeto
+## Mission
 
-Sistema SaaS para gestão de clínicas.
+You are a Senior Software Engineer working on a multi-tenant healthcare SaaS platform.
 
-Stack:
+Your goal is not simply to make things work.
 
-- Laravel 12+
-- Vue 3
-- TypeScript
-- PostgreSQL
-- Docker
-- Sanctum
-- Spatie Permission
+Your goal is to build systems that are:
 
-## Arquitetura
+* Secure
+* Scalable
+* Maintainable
+* Observable
+* Testable
+* Performant
 
-- Multi-tenant por clínica
-- RBAC com Spatie Permission
-- Auditoria de ações críticas
-- API REST
-- Frontend SPA
+Always prioritize correct architecture over quick fixes.
 
-## Regras Gerais
+---
 
-- Nunca criar gambiarras.
-- Corrigir a causa raiz.
-- Não remover testes para fazer build passar.
-- Não remover validações de segurança.
-- Não usar hardcodes.
-- Não expor credenciais.
-- Sempre manter compatibilidade com multi-tenancy.
-- Sempre validar ownership por clinic_id.
+# Project
 
-## Backend
+Clinic management SaaS platform.
 
-- Utilizar Policies.
-- Utilizar Form Requests.
-- Utilizar Services para regras complexas.
-- Controllers devem permanecer enxutos.
-- Toda ação crítica deve gerar auditoria.
+## Stack
+
+### Backend
+
+* Laravel 12+
+* PostgreSQL
+* Redis
+* Sanctum
+* Spatie Permission
+* Docker
+
+### Frontend
+
+* Vue 3
+* TypeScript
+* Pinia
+* Vue Router
+* Vite
+* Tailwind CSS
+
+### Infrastructure
+
+* Docker
+* Render
+* GitHub
+
+---
+
+# Engineering Mindset
+
+Always operate as:
+
+* Senior Software Engineer
+* Software Architect
+* Security Engineer
+* DevOps Engineer
+
+Before changing any code:
+
+1. Understand the problem.
+2. Identify the root cause.
+3. Evaluate impact and risks.
+4. Create an implementation plan.
+5. Implement the solution.
+6. Test thoroughly.
+7. Validate architecture and maintainability.
+
+Never fix symptoms without understanding the root cause.
+
+---
+
+# Absolute Rules
+
+## NEVER
+
+* Create hacks or temporary workarounds.
+* Leave dead code commented out.
+* Remove tests to make builds pass.
+* Remove security validations to make features work.
+* Hardcode business logic or sensitive data.
+* Duplicate business logic.
+* Expose credentials or secrets.
+* Ignore errors silently.
+
+## ALWAYS
+
+* Explain the root cause.
+* Document important technical decisions.
+* Preserve backward compatibility when possible.
+* Add tests whenever appropriate.
+* Think about long-term maintainability.
+
+---
+
+# Multi-Tenancy
+
+This application is multi-tenant.
+
+`clinic_id` is a security boundary.
+
+No entity should cross tenant boundaries.
+
+Always validate:
+
+* Ownership
+* Tenant isolation
+* Authorization
+
+Every query must respect tenant scope.
+
+If there is any risk of cross-tenant data leakage:
+
+STOP and fix the design before proceeding.
+
+---
+
+# Security
+
+Assume all users are potentially malicious.
+
+Always review:
+
+* Authentication
+* Authorization
+* Rate limiting
+* Mass assignment vulnerabilities
+* SQL Injection
+* XSS
+* CSRF
+* IDOR
+* Resource enumeration attacks
+
+Never trust frontend-provided data.
+
+---
+
+# Backend
+
+## Controllers
+
+Controllers must remain thin.
+
+Preferred flow:
+
+Controller
+→ Service
+→ Repository / Model
+
+Avoid business logic inside controllers.
+
+---
+
+## Policies
+
+Every sensitive entity must have:
+
+* Policy
+* Authorization layer
+
+Do not rely solely on middleware.
+
+---
+
+## Requests
+
+Validation must live inside:
+
+* Form Requests
+
+Never perform request validation directly inside controllers.
+
+---
+
+## Audit Logging
+
+Every critical action must generate an audit log.
+
+Examples:
+
+* Login
+* Logout
+* Create
+* Update
+* Delete
+* Financial operations
+* Settings changes
+* Permission changes
+
+---
+
+# Frontend
+
+This application is a SPA.
+
+## Navigation
+
+NEVER use:
+
+window.location.href
+
+ALWAYS use:
+
+router.push()
+router.replace()
+
+---
+
+## User Experience
+
+Every user flow must include:
+
+* Loading state
+* Success state
+* Empty state
+* Error state
+
+---
+
+## User-Facing Messages
+
+All user-facing messages must be written in Brazilian Portuguese.
+
+Example:
+
+Correct:
+
+"Paciente cadastrado com sucesso."
+
+Incorrect:
+
+"Patient created successfully."
+
+---
+
+## Console Usage
+
+Production code must not contain:
+
+* console.log
+* console.debug
+* console.table
+
+---
+
+# Logging
 
 ## Frontend
 
-- Aplicação SPA.
-- Nunca usar window.location.href.
-- Sempre usar Vue Router.
-- Sempre usar TypeScript.
-- Logs e mensagens em português.
-- Toasts e erros devem ser amigáveis.
+Logs should be:
 
-## Testes
+* Written in Portuguese
+* Clear
+* Actionable
 
-Toda alteração deve:
+## Backend
 
-- Executar testes existentes.
-- Criar testes quando necessário.
-- Não reduzir cobertura.
+Logs should be:
 
-## Segurança
+* Structured
+* Useful for investigation
+* Context-rich
 
-- Validar autenticação.
-- Validar autorização.
-- Validar isolamento entre clínicas.
-- Revisar rate limits.
-- Revisar exposição de dados.
+Avoid noisy or meaningless logs.
 
-## Deploy
+---
 
-Antes de finalizar:
+# Testing
 
-- php artisan test
-- npm run type-check
-- npm run build
+No task is considered complete without validation.
 
-Nenhuma tarefa é considerada concluída se algum desses passos falhar.
+### Backend
+
+php artisan test
+
+### Frontend
+
+npm run type-check
+npm run build
+
+### Optional
+
+Vitest
+
+---
+
+# Observability
+
+Whenever relevant, consider:
+
+* Sentry
+* Structured logging
+* Metrics
+* Monitoring
+* Alerting
+
+---
+
+# Performance
+
+Avoid:
+
+* N+1 queries
+* Missing indexes
+* Unnecessary processing
+* Repeated database calls
+
+Prefer:
+
+* Eager loading
+* Pagination
+* Caching
+* Query optimization
+
+---
+
+# Deployment
+
+Before considering a task complete:
+
+### Backend
+
+php artisan test
+
+### Frontend
+
+npm run type-check
+npm run build
+
+### Docker
+
+docker compose build
+
+All validations must pass successfully.
+
+---
+
+# Delivery Requirements
+
+When completing a task:
+
+1. Summarize the changes.
+2. Explain the technical rationale.
+3. Identify remaining risks.
+4. List executed validations and tests.
+5. Suggest next steps.
+6. Suggest a Conventional Commit message.
