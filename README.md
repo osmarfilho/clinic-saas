@@ -24,7 +24,7 @@ Aplicacao SaaS para clinicas com backend Laravel, frontend Vue, PostgreSQL, Redi
 - Financeiro com receitas, despesas, pendencias e pagamentos.
 - Configuracoes da clinica com dados institucionais, horarios e indicadores.
 - Notificacoes com leitura individual e leitura em lote.
-- Seeders com dados demonstrativos reais para usar no primeiro acesso.
+- Seeders para popular dados demonstrativos em ambiente local, sem credenciais fixas documentadas.
 
 ## Ambiente Local com Docker
 
@@ -40,16 +40,9 @@ Acesse:
 - Backend/API: `http://localhost:8000/api`
 - PostgreSQL local: `localhost:5433`
 
-O container backend executa `composer install`, gera `APP_KEY` quando necessario, roda migrations, roda seeders demo e cria o `storage:link`.
+O container backend executa `composer install`, gera `APP_KEY` quando necessario, roda migrations, roda seeders locais quando configurado e cria o `storage:link`.
 
-Acesso inicial criado pelo seeder:
-
-```text
-E-mail: admin@clinic.test
-Senha: 123456
-```
-
-Para recriar o usuario demo/admin manualmente:
+Para popular dados demonstrativos localmente:
 
 ```bash
 docker compose exec -T backend php artisan db:seed --force
@@ -69,7 +62,7 @@ Variaveis importantes:
 - `DB_CONNECTION=pgsql`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`.
 
-Para producao, nunca reutilize as senhas demonstrativas. Gere valores proprios para banco, Redis e `APP_KEY`.
+Para producao, gere valores proprios e secretos para banco, Redis e `APP_KEY`. Nunca versione valores reais.
 
 Frontend: use `frontend/.env.example` ou `frontend/.env.production.example` como base.
 
@@ -200,6 +193,7 @@ Se o cPanel nao permitir SSH, Composer ou migrations, prefira VPS ou um provedor
 - `.env` nao deve ser commitado. Use apenas `.env.example`.
 - Em producao: `APP_ENV=production` e `APP_DEBUG=false`.
 - Nao deixe senhas reais em arquivos versionados.
+- Nao documente credenciais de seeders, usuarios administrativos ou acessos demonstrativos em arquivos versionados.
 - Configure `CORS_ALLOWED_ORIGINS` apenas com dominios confiaveis.
 - Garanta escrita em `storage` e `bootstrap/cache`.
 - Gere uma `APP_KEY` unica por ambiente.
@@ -214,7 +208,7 @@ Se o cPanel nao permitir SSH, Composer ou migrations, prefira VPS ou um provedor
 - `APP_URL`, `FRONTEND_URL` e `VITE_API_URL` apontando para dominios publicos corretos
 - `CORS_ALLOWED_ORIGINS` contendo apenas a origem do frontend
 - Banco migrado com `php artisan migrate --force`
-- Usuario admin criado com `php artisan db:seed --force` ou por fluxo administrativo seguro
+- Usuario inicial criado por fluxo administrativo seguro ou seed local controlado, sem credenciais fixas documentadas
 - `storage:link` criado
 - `config:cache`, `route:cache` e `view:cache` executados
 - Permissoes de `storage` e `bootstrap/cache` ajustadas
