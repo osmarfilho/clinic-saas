@@ -7,6 +7,25 @@ use Illuminate\Validation\Rule;
 
 class UpdatePatientRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $data = [];
+
+        foreach (['cpf', 'telefone', 'cep', 'numero'] as $field) {
+            if ($this->has($field)) {
+                $data[$field] = $this->filled($field)
+                    ? ($field === 'cep' ? preg_replace('/\D/', '', (string) $this->input($field)) : $this->normalizeNumericInput($field))
+                    : null;
+            }
+        }
+
+        if ($this->has('estado')) {
+            $data['estado'] = $this->filled('estado') ? strtoupper((string) $this->input('estado')) : null;
+        }
+
+        $this->merge($data);
+    }
+
     public function authorize(): bool
     {
         return true;
@@ -18,8 +37,8 @@ class UpdatePatientRequest extends FormRequest
 
         return [
             'nome' => ['sometimes', 'required', 'string', 'max:255'],
-            'cpf' => ['sometimes', 'required', 'string', 'max:14', Rule::unique('patients', 'cpf')->ignore($patientId)],
-            'telefone' => ['nullable', 'string', 'max:30'],
+            'cpf' => ['sometimes', 'required', 'string', 'digits:11', Rule::unique('patients', 'cpf')->ignore($patientId)],
+            'telefone' => ['nullable', 'string', 'digits_between:10,11'],
             'email' => ['nullable', 'email', 'max:255'],
             'data_nascimento' => ['nullable', 'date'],
             'convenio' => ['nullable', 'string', 'max:255'],
@@ -39,6 +58,16 @@ class UpdatePatientRequest extends FormRequest
         return [
             'numero.integer' => 'O número do endereço deve conter apenas números.',
             'numero.min' => 'O número do endereço deve ser maior que zero.',
+            'cpf.digits' => 'O CPF deve conter exatamente 11 números.',
+            'telefone.digits_between' => 'O telefone deve conter 10 ou 11 números, incluindo DDD.',
+            'email.email' => 'Informe um e-mail válido.',
         ];
+    }
+
+    private function normalizeNumericInput(string $field): string
+    {
+        $value = (string) $this->input($field);
+
+        return preg_match('/\pL/u', $value) ? $value : preg_replace('/\D/', '', $value);
     }
 }

@@ -20,6 +20,8 @@ import {
 
 const patients = ref<Patient[]>([])
 const search = ref('')
+const statusFilter = ref('')
+const insuranceFilter = ref('')
 const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
@@ -48,11 +50,16 @@ const emptyForm: PatientPayload = {
   cidade: '',
   estado: '',
   observacoes: '',
+  ativo: true,
 }
 
 const form = reactive<PatientPayload>({ ...emptyForm })
 
 const canSubmit = computed(() => Object.keys(validateForm()).length === 0 && !saving.value)
+const insuranceOptions = computed(() => {
+  return [...new Set(patients.value.map((patient) => patient.convenio).filter(Boolean))]
+    .sort((a, b) => String(a).localeCompare(String(b), 'pt-BR'))
+})
 
 function onlyDigits(value = '') {
   return value.replace(/\D/g, '')
@@ -80,6 +87,14 @@ function maskCep(value = '') {
   return onlyDigits(value).slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2')
 }
 
+function formatCpf(value = '') {
+  return maskCpf(value) || '-'
+}
+
+function formatPhone(value = '') {
+  return value ? maskPhone(value) : '-'
+}
+
 function clearFormErrors() {
   Object.keys(formErrors).forEach((key) => {
     delete formErrors[key as keyof PatientPayload]
@@ -99,6 +114,10 @@ function validateForm() {
 
   if (form.telefone && ![10, 11].includes(onlyDigits(form.telefone).length)) {
     errors.telefone = 'Informe um telefone válido com DDD.'
+  }
+
+  if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    errors.email = 'Informe um e-mail válido.'
   }
 
   if (form.numero && !/^[1-9]\d*$/.test(form.numero)) {
@@ -204,7 +223,11 @@ async function loadPatients() {
   error.value = ''
 
   try {
-    const response = await listarPacientes(search.value)
+    const response = await listarPacientes({
+      search: search.value,
+      status: statusFilter.value,
+      convenio: insuranceFilter.value,
+    })
     patients.value = response.data
   } catch {
     error.value = 'Não foi possível carregar os pacientes.'
@@ -283,6 +306,8 @@ watch(search, () => {
   searchTimeout = setTimeout(loadPatients, 350)
 })
 
+watch([statusFilter, insuranceFilter], loadPatients)
+
 watch(() => form.cpf, (value) => {
   const masked = maskCpf(value)
   if (value !== masked) form.cpf = masked
@@ -317,7 +342,7 @@ watch(() => form.numero, (value) => {
       </AppButton>
     </div>
 
-    <section class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#E2E8F0] bg-white p-4">
+    <section class="mb-4 grid gap-3 rounded-lg border border-[#E2E8F0] bg-white p-4 lg:grid-cols-[1fr_180px_220px_auto]">
       <label class="relative min-w-64 flex-1">
         <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
@@ -328,6 +353,17 @@ watch(() => form.numero, (value) => {
           @keyup.enter="loadPatients"
         />
       </label>
+      <select v-model="statusFilter" class="h-10 rounded-lg border border-[#E2E8F0] px-3 text-sm">
+        <option value="">Todos os status</option>
+        <option value="1">Ativos</option>
+        <option value="0">Inativos</option>
+      </select>
+      <select v-model="insuranceFilter" class="h-10 rounded-lg border border-[#E2E8F0] px-3 text-sm">
+        <option value="">Todos os convênios</option>
+        <option v-for="insurance in insuranceOptions" :key="String(insurance)" :value="String(insurance)">
+          {{ insurance }}
+        </option>
+      </select>
       <AppButton variant="secondary" @click="loadPatients">Buscar</AppButton>
     </section>
 
@@ -365,8 +401,8 @@ watch(() => form.numero, (value) => {
             <strong class="text-[#0F172A]">{{ patient.nome }}</strong>
             <p class="text-xs text-slate-500">{{ patient.email || 'Sem e-mail' }}</p>
           </td>
-          <td class="px-4 py-3 text-slate-600">{{ patient.cpf }}</td>
-          <td class="px-4 py-3 text-slate-600">{{ patient.telefone || '-' }}</td>
+          <td class="px-4 py-3 text-slate-600">{{ formatCpf(patient.cpf) }}</td>
+          <td class="px-4 py-3 text-slate-600">{{ formatPhone(patient.telefone ?? '') }}</td>
           <td class="px-4 py-3 text-slate-600">{{ patient.convenio || 'Particular' }}</td>
           <td class="px-4 py-3 text-slate-600">{{ patient.cidade || '-' }}</td>
           <td class="px-4 py-3">
@@ -411,7 +447,7 @@ watch(() => form.numero, (value) => {
           <AppInput v-model="form.nome" label="Nome" :error="formErrors.nome" required />
           <AppInput v-model="form.cpf" label="CPF" :error="formErrors.cpf" inputmode="numeric" :maxlength="14" required />
           <AppInput v-model="form.telefone" label="Telefone" :error="formErrors.telefone" inputmode="tel" :maxlength="15" />
-          <AppInput v-model="form.email" label="E-mail" type="email" />
+          <AppInput v-model="form.email" label="E-mail" type="email" :error="formErrors.email" />
           <AppInput v-model="form.data_nascimento" label="Data de nascimento" type="date" />
           <AppInput v-model="form.convenio" label="Convênio" />
           <AppInput v-model="form.cep" label="CEP" :error="formErrors.cep" inputmode="numeric" :maxlength="9" />
@@ -429,6 +465,16 @@ watch(() => form.numero, (value) => {
               <option v-for="estado in estadosBrasil" :key="estado.sigla" :value="estado.sigla">
                 {{ estado.sigla }} - {{ estado.nome }}
               </option>
+            </select>
+          </label>
+          <label class="grid gap-1.5 text-sm font-medium text-slate-700">
+            Status
+            <select
+              v-model="form.ativo"
+              class="h-10 rounded-lg border border-[#E2E8F0] bg-white px-3 text-sm text-[#0F172A] outline-none transition focus:border-[#6FF6A5] focus:ring-4 focus:ring-[#6FF6A5]/20"
+            >
+              <option :value="true">Ativo</option>
+              <option :value="false">Inativo</option>
             </select>
           </label>
         </div>

@@ -21,6 +21,7 @@ Route::prefix('auth')->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('dashboard', DashboardController::class);
+    Route::post('patients/restore/{patient}', [PatientController::class, 'restore']);
     Route::apiResource('patients', PatientController::class);
     Route::apiResource('appointments', AppointmentController::class);
     Route::apiResource('financial-transactions', FinancialTransactionController::class);

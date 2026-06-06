@@ -32,11 +32,21 @@ export interface FinancialTransactionPayload {
   notes: string
 }
 
+export interface FinancialSummary {
+  paid_income: number
+  paid_expenses: number
+  pending_income: number
+  pending_expenses: number
+  current_balance: number
+  forecast_balance: number
+}
+
 interface PaginatedTransactions {
   data: FinancialTransaction[]
   current_page: number
   last_page: number
   total: number
+  summary: FinancialSummary
 }
 
 export async function listarLancamentos(params: { search?: string; type?: string; status?: string } = {}) {

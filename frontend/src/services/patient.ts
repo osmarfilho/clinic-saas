@@ -44,9 +44,11 @@ interface PaginatedPatients {
   total: number
 }
 
-export async function listarPacientes(search = '') {
+export async function listarPacientes(params: { search?: string; status?: string; convenio?: string } | string = '') {
+  const requestParams = typeof params === 'string' ? { search: params } : params
+
   const { data } = await api.get<PaginatedPatients>('/patients', {
-    params: { search },
+    params: requestParams,
   })
 
   return data

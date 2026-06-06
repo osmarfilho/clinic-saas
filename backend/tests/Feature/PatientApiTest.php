@@ -38,7 +38,7 @@ class PatientApiTest extends TestCase
 
         $this->assertDatabaseHas('clinic_notifications', [
             'title' => 'Novo paciente cadastrado',
-            'body' => 'Novo paciente cadastrado: Maria Souza',
+            'body' => 'Novo paciente cadastrado: Maria Souza.',
             'type' => 'success',
         ]);
 
@@ -71,7 +71,7 @@ class PatientApiTest extends TestCase
 
         $this->assertDatabaseHas('clinic_notifications', [
             'title' => 'Paciente atualizado',
-            'body' => 'Paciente atualizado: Maria Souza Atualizada',
+            'body' => 'Paciente Maria Souza Atualizada foi atualizado. Campos alterados: nome, telefone e estado.',
         ]);
     }
 
@@ -87,6 +87,28 @@ class PatientApiTest extends TestCase
         ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['nome', 'cpf']);
+    }
+
+    public function test_patient_cpf_and_phone_must_be_numeric_with_expected_lengths(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $this->postJson('/api/patients', [
+            ...$this->patientPayload(),
+            'cpf' => '123ABC',
+            'telefone' => 'telefone',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['cpf', 'telefone']);
+
+        $this->postJson('/api/patients', [
+            ...$this->patientPayload(),
+            'cpf' => '123.456.789-01',
+            'telefone' => '(11) 98888-7777',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('cpf', '12345678901')
+            ->assertJsonPath('telefone', '11988887777');
     }
 
     public function test_patient_address_number_must_be_positive_integer(): void
@@ -121,6 +143,28 @@ class PatientApiTest extends TestCase
 
         $this->assertSoftDeleted('patients', [
             'id' => $patient->id,
+        ]);
+
+        $this->assertDatabaseHas('clinic_notifications', [
+            'title' => 'Paciente removido',
+            'body' => 'Paciente Maria Souza foi removido do sistema.',
+        ]);
+    }
+
+    public function test_authenticated_user_can_restore_patient(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+
+        $patient = Patient::create($this->patientPayload());
+        $patient->delete();
+
+        $this->postJson("/api/patients/restore/{$patient->id}")
+            ->assertOk()
+            ->assertJsonPath('id', $patient->id);
+
+        $this->assertDatabaseHas('clinic_notifications', [
+            'title' => 'Paciente restaurado',
+            'body' => 'Paciente Maria Souza foi restaurado.',
         ]);
     }
 

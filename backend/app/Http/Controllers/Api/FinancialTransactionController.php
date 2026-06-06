@@ -3,15 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreFinancialTransactionRequest;
+use App\Http\Requests\UpdateFinancialTransactionRequest;
 use App\Models\ClinicNotification;
 use App\Models\FinancialTransaction;
+use App\Services\FinancialSummaryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class FinancialTransactionController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, FinancialSummaryService $summaryService): JsonResponse
     {
         $transactions = FinancialTransaction::query()
             ->with('patient:id,nome,cpf,email', 'appointment:id,title,starts_at')
@@ -30,22 +32,35 @@ class FinancialTransactionController extends Controller
             ->orderByDesc('due_date')
             ->paginate($request->integer('per_page', 30));
 
-        return response()->json($transactions);
+        return response()->json([
+            ...$transactions->toArray(),
+            'summary' => $summaryService->summary(),
+        ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreFinancialTransactionRequest $request): JsonResponse
     {
-        $transaction = FinancialTransaction::create($this->validatedData($request));
+        $transaction = FinancialTransaction::create($request->validated());
+
+        ClinicNotification::create([
+            'user_id' => $request->user()?->id,
+            'title' => 'Lançamento financeiro criado',
+            'body' => 'Novo lançamento financeiro criado: '.$transaction->description.' - '.$this->money($transaction->amount).'.',
+            'type' => 'info',
+            'data' => ['transaction_id' => $transaction->id],
+        ]);
 
         if ($transaction->status === 'paid') {
             ClinicNotification::create([
                 'user_id' => $request->user()?->id,
                 'title' => 'Pagamento confirmado',
-                'body' => $transaction->description.' foi marcado como pago.',
+                'body' => 'Pagamento confirmado: '.$transaction->description.' - '.$this->money($transaction->amount).'.',
                 'type' => 'success',
                 'data' => ['transaction_id' => $transaction->id],
             ]);
         }
+
+        $this->notifyIfOverdue($request, $transaction);
 
         return response()->json($transaction->load('patient:id,nome,cpf,email', 'appointment:id,title,starts_at'), 201);
     }
@@ -55,15 +70,46 @@ class FinancialTransactionController extends Controller
         return response()->json($financialTransaction->load('patient:id,nome,cpf,email', 'appointment:id,title,starts_at'));
     }
 
-    public function update(Request $request, FinancialTransaction $financialTransaction): JsonResponse
+    public function update(UpdateFinancialTransactionRequest $request, FinancialTransaction $financialTransaction): JsonResponse
     {
-        $financialTransaction->update($this->validatedData($request, true));
+        $previousStatus = $financialTransaction->status;
+        $financialTransaction->fill($request->validated());
+        $changedFields = array_keys($financialTransaction->getDirty());
+        $financialTransaction->save();
+
+        ClinicNotification::create([
+            'user_id' => $request->user()?->id,
+            'title' => 'Lançamento financeiro atualizado',
+            'body' => $this->transactionUpdatedMessage($financialTransaction, $changedFields),
+            'type' => 'info',
+            'data' => ['transaction_id' => $financialTransaction->id],
+        ]);
+
+        if ($financialTransaction->status === 'paid' && $previousStatus !== 'paid') {
+            ClinicNotification::create([
+                'user_id' => $request->user()?->id,
+                'title' => 'Pagamento confirmado',
+                'body' => 'Pagamento confirmado: '.$financialTransaction->description.' - '.$this->money($financialTransaction->amount).'.',
+                'type' => 'success',
+                'data' => ['transaction_id' => $financialTransaction->id],
+            ]);
+        }
+
+        $this->notifyIfOverdue($request, $financialTransaction);
 
         return response()->json($financialTransaction->refresh()->load('patient:id,nome,cpf,email', 'appointment:id,title,starts_at'));
     }
 
-    public function destroy(FinancialTransaction $financialTransaction): JsonResponse
+    public function destroy(Request $request, FinancialTransaction $financialTransaction): JsonResponse
     {
+        ClinicNotification::create([
+            'user_id' => $request->user()?->id,
+            'title' => 'Lançamento financeiro removido',
+            'body' => 'Lançamento financeiro removido: '.$financialTransaction->description.' - '.$this->money($financialTransaction->amount).'.',
+            'type' => 'warning',
+            'data' => ['transaction_id' => $financialTransaction->id],
+        ]);
+
         $financialTransaction->delete();
 
         return response()->json([
@@ -71,22 +117,50 @@ class FinancialTransactionController extends Controller
         ]);
     }
 
-    private function validatedData(Request $request, bool $partial = false): array
+    private function money(string|float|int $amount): string
     {
-        $required = $partial ? 'sometimes' : 'required';
+        return 'R$ '.number_format((float) $amount, 2, ',', '.');
+    }
 
-        return $request->validate([
-            'patient_id' => ['nullable', 'exists:patients,id'],
-            'appointment_id' => ['nullable', 'exists:appointments,id'],
-            'description' => [$required, 'string', 'max:255'],
-            'type' => [$required, Rule::in(['income', 'expense'])],
-            'category' => ['nullable', 'string', 'max:120'],
-            'amount' => [$required, 'numeric', 'min:0', 'max:999999.99'],
-            'due_date' => [$required, 'date'],
-            'paid_at' => ['nullable', 'date'],
-            'status' => [$required, Rule::in(['pending', 'paid', 'canceled'])],
-            'payment_method' => ['nullable', 'string', 'max:120'],
-            'notes' => ['nullable', 'string'],
+    private function transactionUpdatedMessage(FinancialTransaction $transaction, array $changedFields): string
+    {
+        if ($changedFields === []) {
+            return 'Lançamento '.$transaction->description.' foi atualizado.';
+        }
+
+        $labels = [
+            'patient_id' => 'paciente',
+            'appointment_id' => 'agendamento',
+            'description' => 'descrição',
+            'type' => 'tipo',
+            'category' => 'categoria',
+            'amount' => 'valor',
+            'due_date' => 'vencimento',
+            'paid_at' => 'data de pagamento',
+            'status' => 'status',
+            'payment_method' => 'forma de pagamento',
+            'notes' => 'observações',
+        ];
+
+        $changedLabels = collect($changedFields)
+            ->map(fn (string $field) => $labels[$field] ?? $field)
+            ->join(', ', ' e ');
+
+        return 'Lançamento '.$transaction->description.' foi atualizado. Campos alterados: '.$changedLabels.'.';
+    }
+
+    private function notifyIfOverdue(Request $request, FinancialTransaction $transaction): void
+    {
+        if ($transaction->status !== 'pending' || ! $transaction->due_date?->lt(today())) {
+            return;
+        }
+
+        ClinicNotification::create([
+            'user_id' => $request->user()?->id,
+            'title' => 'Lançamento vencido',
+            'body' => 'Lançamento vencido: '.$transaction->description.' - '.$this->money($transaction->amount).'.',
+            'type' => 'danger',
+            'data' => ['transaction_id' => $transaction->id],
         ]);
     }
 }

@@ -45,7 +45,7 @@ class AppointmentController extends Controller
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
             'title' => 'Consulta agendada',
-            'body' => $appointment->title.' em '.$appointment->starts_at->format('d/m/Y H:i'),
+            'body' => 'Novo agendamento criado para '.$this->appointmentPatientName($appointment).' em '.$appointment->starts_at->format('d/m/Y').' às '.$appointment->starts_at->format('H:i').'.',
             'type' => 'success',
             'data' => ['appointment_id' => $appointment->id],
         ]);
@@ -63,16 +63,18 @@ class AppointmentController extends Controller
         $data = $this->validatedData($request, true);
         $this->ensureScheduleIsAvailable($data, $appointment);
 
-        $previousStatus = $appointment->status;
+        $original = $appointment->replicate();
         $appointment->update($data);
+        $changedFields = array_keys($appointment->getChanges());
+        $wasCanceled = $appointment->status === 'canceled' && $original->status !== 'canceled';
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
-            'title' => $appointment->status === 'canceled' && $previousStatus !== 'canceled' ? 'Consulta cancelada' : 'Agenda atualizada',
-            'body' => $appointment->status === 'canceled' && $previousStatus !== 'canceled'
-                ? $appointment->title.' foi cancelada.'
-                : $appointment->title.' foi atualizada.',
-            'type' => $appointment->status === 'canceled' && $previousStatus !== 'canceled' ? 'warning' : 'info',
+            'title' => $wasCanceled ? 'Consulta cancelada' : 'Agenda atualizada',
+            'body' => $wasCanceled
+                ? 'Agendamento de '.$this->appointmentPatientName($appointment).' foi cancelado.'
+                : $this->appointmentUpdatedMessage($appointment, $original, $changedFields),
+            'type' => $wasCanceled ? 'warning' : 'info',
             'data' => ['appointment_id' => $appointment->id],
         ]);
 
@@ -84,7 +86,7 @@ class AppointmentController extends Controller
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
             'title' => 'Consulta cancelada',
-            'body' => $appointment->title.' foi removida da agenda.',
+            'body' => 'Agendamento de '.$this->appointmentPatientName($appointment).' foi cancelado.',
             'type' => 'warning',
             'data' => ['appointment_id' => $appointment->id],
         ]);
@@ -150,5 +152,41 @@ class AppointmentController extends Controller
                 'starts_at' => ['Já existe um agendamento para este profissional nesse horário.'],
             ]);
         }
+    }
+
+    private function appointmentPatientName(Appointment $appointment): string
+    {
+        return $appointment->patient?->nome ?? 'Paciente avulso';
+    }
+
+    private function appointmentUpdatedMessage(Appointment $appointment, Appointment $original, array $changedFields): string
+    {
+        $message = 'Agendamento de '.$this->appointmentPatientName($appointment).' foi alterado.';
+
+        if (in_array('starts_at', $changedFields, true)) {
+            return $message.' Data alterada de '.$original->starts_at->format('d/m/Y H:i').' para '.$appointment->starts_at->format('d/m/Y H:i').'.';
+        }
+
+        if ($changedFields === []) {
+            return $message;
+        }
+
+        $labels = [
+            'patient_id' => 'paciente',
+            'title' => 'título',
+            'professional' => 'médico',
+            'type' => 'tipo',
+            'ends_at' => 'horário de término',
+            'status' => 'status',
+            'price' => 'valor',
+            'notes' => 'observação',
+        ];
+
+        $changedLabels = collect($changedFields)
+            ->reject(fn (string $field) => $field === 'updated_at')
+            ->map(fn (string $field) => $labels[$field] ?? $field)
+            ->join(', ', ' e ');
+
+        return $changedLabels ? $message.' Campos alterados: '.$changedLabels.'.' : $message;
     }
 }

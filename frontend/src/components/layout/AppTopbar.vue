@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Bell, ChevronDown, LogOut, Menu, Search } from 'lucide-vue-next'
-import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { listarNotificacoes } from '@/services/notifications'
 
@@ -11,7 +11,10 @@ defineEmits<{
 
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 const unreadCount = ref(0)
+const showGlobalSearch = computed(() => route.name !== 'patients')
+let notificationTimer: ReturnType<typeof setInterval> | null = null
 
 async function logout() {
   await auth.logout()
@@ -27,7 +30,18 @@ async function loadNotifications() {
   }
 }
 
-onMounted(loadNotifications)
+onMounted(() => {
+  loadNotifications()
+  notificationTimer = setInterval(loadNotifications, 30000)
+  window.addEventListener('focus', loadNotifications)
+})
+
+onBeforeUnmount(() => {
+  if (notificationTimer) clearInterval(notificationTimer)
+  window.removeEventListener('focus', loadNotifications)
+})
+
+watch(() => route.fullPath, loadNotifications)
 </script>
 
 <template>
@@ -42,7 +56,7 @@ onMounted(loadNotifications)
         <Menu class="h-5 w-5" />
       </button>
 
-      <label class="relative w-full max-w-xl">
+      <label v-if="showGlobalSearch" class="relative w-full max-w-xl">
         <Search class="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
         <span class="absolute right-3 top-1/2 hidden -translate-y-1/2 rounded-lg border border-border bg-surface px-2 py-1 text-[11px] font-semibold text-muted sm:inline-flex">
           ⌘K

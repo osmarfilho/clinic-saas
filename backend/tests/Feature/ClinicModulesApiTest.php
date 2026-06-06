@@ -124,7 +124,7 @@ class ClinicModulesApiTest extends TestCase
         $this->assertDatabaseHas('clinic_notifications', [
             'user_id' => $user->id,
             'title' => 'Consulta cancelada',
-            'body' => 'Consulta para cancelar foi cancelada.',
+            'body' => 'Agendamento de Maria Souza foi cancelado.',
             'type' => 'warning',
         ]);
     }
@@ -161,6 +161,105 @@ class ClinicModulesApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('metrics.active_patients', 1)
             ->assertJsonPath('metrics.monthly_revenue', 180);
+    }
+
+    public function test_financial_summary_separates_paid_and_pending_totals(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $patient = Patient::create($this->patientPayload());
+
+        FinancialTransaction::create([
+            'patient_id' => $patient->id,
+            'description' => 'Receita paga',
+            'type' => 'income',
+            'amount' => 180,
+            'due_date' => now()->toDateString(),
+            'paid_at' => now()->toDateString(),
+            'status' => 'paid',
+        ]);
+        FinancialTransaction::create([
+            'patient_id' => $patient->id,
+            'description' => 'Receita pendente',
+            'type' => 'income',
+            'amount' => 220,
+            'due_date' => now()->toDateString(),
+            'status' => 'pending',
+        ]);
+        FinancialTransaction::create([
+            'description' => 'Despesa paga',
+            'type' => 'expense',
+            'amount' => 3200,
+            'due_date' => now()->toDateString(),
+            'paid_at' => now()->toDateString(),
+            'status' => 'paid',
+        ]);
+        FinancialTransaction::create([
+            'description' => 'Despesa pendente',
+            'type' => 'expense',
+            'amount' => 780,
+            'due_date' => now()->toDateString(),
+            'status' => 'pending',
+        ]);
+
+        $this->getJson('/api/financial-transactions?type=income&status=paid')
+            ->assertOk()
+            ->assertJsonPath('summary.paid_income', 180)
+            ->assertJsonPath('summary.pending_income', 220)
+            ->assertJsonPath('summary.paid_expenses', 3200)
+            ->assertJsonPath('summary.pending_expenses', 780)
+            ->assertJsonPath('summary.current_balance', -3020)
+            ->assertJsonPath('summary.forecast_balance', -3580);
+    }
+
+    public function test_financial_validation_and_notifications(): void
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs($user);
+        $patient = Patient::create($this->patientPayload());
+
+        $this->postJson('/api/financial-transactions', [
+            'description' => '',
+            'type' => 'income',
+            'amount' => 0,
+            'due_date' => null,
+            'status' => 'pending',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['patient_id', 'description', 'amount', 'due_date']);
+
+        $response = $this->postJson('/api/financial-transactions', [
+            'patient_id' => $patient->id,
+            'description' => 'Consulta Maria Souza',
+            'type' => 'income',
+            'amount' => 180,
+            'due_date' => now()->toDateString(),
+            'status' => 'pending',
+        ])
+            ->assertCreated()
+            ->assertJsonPath('description', 'Consulta Maria Souza');
+
+        $transactionId = $response->json('id');
+
+        $this->putJson("/api/financial-transactions/{$transactionId}", [
+            'status' => 'paid',
+            'paid_at' => now()->toDateString(),
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'paid');
+
+        $this->assertDatabaseHas('clinic_notifications', [
+            'user_id' => $user->id,
+            'title' => 'Pagamento confirmado',
+            'body' => 'Pagamento confirmado: Consulta Maria Souza - R$ 180,00.',
+        ]);
+
+        $this->deleteJson("/api/financial-transactions/{$transactionId}")
+            ->assertOk();
+
+        $this->assertDatabaseHas('clinic_notifications', [
+            'user_id' => $user->id,
+            'title' => 'Lançamento financeiro removido',
+        ]);
     }
 
     public function test_authenticated_user_can_update_settings_and_read_notifications(): void
