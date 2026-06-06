@@ -13,7 +13,8 @@ const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const unreadCount = ref(0)
-const showGlobalSearch = computed(() => route.name !== 'patients')
+const routesWithTableSearch = ['patients', 'agenda', 'financeiro']
+const showGlobalSearch = computed(() => !routesWithTableSearch.includes(String(route.name)))
 let notificationTimer: ReturnType<typeof setInterval> | null = null
 
 async function logout() {

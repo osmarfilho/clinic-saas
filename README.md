@@ -32,7 +32,6 @@ Aplicacao SaaS para clinicas com backend Laravel, frontend Vue, PostgreSQL, Redi
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 docker compose up -d --build
-docker compose exec -T backend php artisan db:seed --force
 ```
 
 Acesse:
@@ -41,13 +40,19 @@ Acesse:
 - Backend/API: `http://localhost:8000/api`
 - PostgreSQL local: `localhost:5433`
 
-O container backend executa `composer install`, gera `APP_KEY` quando necessario, roda migrations e cria o `storage:link`.
+O container backend executa `composer install`, gera `APP_KEY` quando necessario, roda migrations, roda seeders demo e cria o `storage:link`.
 
 Acesso inicial criado pelo seeder:
 
 ```text
 E-mail: admin@clinic.test
 Senha: 123456
+```
+
+Para recriar o usuario demo/admin manualmente:
+
+```bash
+docker compose exec -T backend php artisan db:seed --force
 ```
 
 ## Configuracao do .env
@@ -64,6 +69,8 @@ Variaveis importantes:
 - `DB_CONNECTION=pgsql`, `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`.
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD`.
 
+Para producao, nunca reutilize as senhas demonstrativas. Gere valores proprios para banco, Redis e `APP_KEY`.
+
 Frontend: use `frontend/.env.example` ou `frontend/.env.production.example` como base.
 
 ```bash
@@ -71,6 +78,8 @@ VITE_API_URL=http://localhost:8000/api
 ```
 
 Em producao, ajuste para a URL publica da API.
+
+O favicon da SPA e servido por `frontend/public/clinic-favicon.ico` e referenciado em `frontend/index.html` como `/clinic-favicon.ico`, evitando cache antigo de `/favicon.ico`.
 
 ## Backend
 
@@ -102,6 +111,7 @@ cd frontend
 npm install
 cp .env.example .env
 npm run build
+npm run type-check
 ```
 
 O frontend usa Vue Router; nao use redirecionamentos com `window.location.href` para navegacao interna da SPA.
@@ -112,6 +122,8 @@ Com Docker:
 
 ```bash
 docker compose exec -T backend php artisan test
+cd frontend && npm run build
+cd frontend && npm run type-check
 ```
 
 Sem Docker:
@@ -122,6 +134,25 @@ php artisan test
 ```
 
 O PHP local precisa ter `pdo_sqlite`, porque a suite usa SQLite em memoria.
+
+O frontend nao possui script `lint` configurado atualmente; o build ja executa `vue-tsc`.
+
+## Docker
+
+O `docker-compose.yml` usa imagens locais de desenvolvimento e sobe:
+
+- `backend` em `${BACKEND_PORT:-8000}`
+- `frontend` em `${FRONTEND_PORT:-5173}`
+- `postgres` em `${POSTGRES_PORT:-5433}`
+- `redis` em `${REDIS_PORT:-6379}`
+
+As variaveis `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `REDIS_PORT`, `BACKEND_PORT` e `FRONTEND_PORT` podem ser definidas no ambiente do shell ou em um `.env` local na raiz. Esse `.env` nao deve ser commitado.
+
+Comando principal:
+
+```bash
+docker compose up -d --build
+```
 
 ## Deploy em VPS
 
@@ -148,6 +179,7 @@ php artisan view:cache
 ```
 
 8. Garanta permissao de escrita em `backend/storage` e `backend/bootstrap/cache` para o usuario do PHP.
+9. Aponte o proxy reverso HTTPS para o frontend e para a API, mantendo `CORS_ALLOWED_ORIGINS` restrito ao dominio da SPA.
 
 ## Deploy em cPanel
 
@@ -171,6 +203,23 @@ Se o cPanel nao permitir SSH, Composer ou migrations, prefira VPS ou um provedor
 - Configure `CORS_ALLOWED_ORIGINS` apenas com dominios confiaveis.
 - Garanta escrita em `storage` e `bootstrap/cache`.
 - Gere uma `APP_KEY` unica por ambiente.
+- Valide se `backend/storage` e `backend/bootstrap/cache` estao gravaveis pelo processo PHP.
+- Rode `php artisan config:cache`, `route:cache` e `view:cache` apos configurar o `.env` de producao.
+
+## Checklist Pos-Deploy
+
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- `APP_KEY` gerada e unica
+- `APP_URL`, `FRONTEND_URL` e `VITE_API_URL` apontando para dominios publicos corretos
+- `CORS_ALLOWED_ORIGINS` contendo apenas a origem do frontend
+- Banco migrado com `php artisan migrate --force`
+- Usuario admin criado com `php artisan db:seed --force` ou por fluxo administrativo seguro
+- `storage:link` criado
+- `config:cache`, `route:cache` e `view:cache` executados
+- Permissoes de `storage` e `bootstrap/cache` ajustadas
+- HTTPS ativo no frontend e na API
+- Login, pacientes, agenda, financeiro e notificacoes testados manualmente
 
 ## Comandos Rapidos
 
@@ -183,4 +232,5 @@ docker compose exec -T backend php artisan config:cache
 docker compose exec -T backend php artisan route:cache
 docker compose exec -T backend php artisan view:cache
 cd frontend && npm run build
+cd frontend && npm run type-check
 ```

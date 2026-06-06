@@ -9,6 +9,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppTable from '@/components/ui/AppTable.vue'
+import AppToast from '@/components/ui/AppToast.vue'
 import {
   atualizarLancamento,
   criarLancamento,
@@ -261,6 +262,9 @@ onMounted(async () => {
 
 <template>
   <AppLayout>
+    <AppToast v-if="successMessage" :message="successMessage" type="success" />
+    <AppToast v-if="error" :message="error" type="error" />
+
     <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 class="text-2xl font-bold text-[#0F172A]">Financeiro</h1>
@@ -315,7 +319,9 @@ onMounted(async () => {
         <option value="paid">Pago</option>
         <option value="canceled">Cancelado</option>
       </select>
-      <AppButton variant="secondary" @click="loadTransactions">Filtrar</AppButton>
+      <AppButton variant="secondary" :disabled="loading" @click="loadTransactions">
+        {{ loading ? 'Filtrando...' : 'Filtrar' }}
+      </AppButton>
     </section>
 
     <p v-if="error" class="mb-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700">{{ error }}</p>
