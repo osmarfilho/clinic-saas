@@ -1,6 +1,8 @@
 services:
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: clinic-backend
     working_dir: /var/www
     volumes:
@@ -8,12 +10,22 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - postgres
-      - redis
-    command: php artisan serve --host=0.0.0.0 --port=8000
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: >
+      sh -c "test -f .env || cp .env.example .env &&
+      composer install &&
+      grep -q '^APP_KEY=base64:' .env || php artisan key:generate --force &&
+      php artisan migrate --force &&
+      php artisan storage:link &&
+      php artisan serve --host=0.0.0.0 --port=8000"
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: clinic-frontend
     working_dir: /app
     volumes:
@@ -21,8 +33,9 @@ services:
       - /app/node_modules
     ports:
       - "5173:5173"
-    stdin_open: true
-    tty: true
+    depends_on:
+      - backend
+    command: sh -c "test -f .env || cp .env.example .env; npm run dev -- --host 0.0.0.0"
 
   postgres:
     image: postgres:16
@@ -36,10 +49,16 @@ services:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d clinic"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:alpine
     container_name: clinic-redis
+    restart: always
     ports:
       - "6379:6379"
 
