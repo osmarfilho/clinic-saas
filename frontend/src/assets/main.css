@@ -15,6 +15,12 @@
   --color-brand-strong: #0d9488;
   --color-brand-soft: #ecfdf5;
   --color-brand-ring: #a7f3d0;
+  --color-primary: #10b981;
+  --color-primary-foreground: #ffffff;
+  --color-muted-foreground: #64748b;
+  --color-input: #cbd5e1;
+  --color-clinic-mint: #6ee7b7;
+  --color-clinic-glow: #d1fae5;
 
   --color-chart-emerald: #10b981;
   --color-chart-emerald-soft: #d1fae5;
@@ -61,4 +67,36 @@ select {
 :focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
+}
+
+@keyframes fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-slide-up {
+  animation: fade-slide-up 500ms ease-out both;
+}
+
+.animate-fade-slide-right {
+  animation: fade-slide-right 500ms ease-out both;
 }

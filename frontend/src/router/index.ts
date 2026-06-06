@@ -72,7 +72,13 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresAuth && auth.isAuthenticated && !auth.user) {
-    await auth.fetchMe().catch(() => auth.logout())
+    try {
+      await auth.fetchMe()
+    } catch {
+      await auth.logout()
+
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
   }
 })
 
