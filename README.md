@@ -15,12 +15,24 @@ Aplicacao SaaS para clinicas com backend Laravel, frontend Vue, PostgreSQL, Redi
 - `frontend/`: SPA Vue/Vite, rotas, stores, services e Dockerfiles.
 - `docker-compose.yml`: ambiente local com backend, frontend, PostgreSQL e Redis.
 
+## Modulos Entregues
+
+- Autenticacao com Laravel Sanctum.
+- Dashboard com dados reais calculados no banco.
+- Pacientes com CRUD completo.
+- Agenda com CRUD de consultas, retornos, exames e teleconsultas.
+- Financeiro com receitas, despesas, pendencias e pagamentos.
+- Configuracoes da clinica com dados institucionais, horarios e indicadores.
+- Notificacoes com leitura individual e leitura em lote.
+- Seeders com dados demonstrativos reais para usar no primeiro acesso.
+
 ## Ambiente Local com Docker
 
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 docker compose up -d --build
+docker compose exec -T backend php artisan db:seed --force
 ```
 
 Acesse:
@@ -30,6 +42,13 @@ Acesse:
 - PostgreSQL local: `localhost:5433`
 
 O container backend executa `composer install`, gera `APP_KEY` quando necessario, roda migrations e cria o `storage:link`.
+
+Acesso inicial criado pelo seeder:
+
+```text
+E-mail: admin@clinic.test
+Senha: 123456
+```
 
 ## Configuracao do .env
 
@@ -61,6 +80,7 @@ composer install
 cp .env.example .env
 php artisan key:generate
 php artisan migrate
+php artisan db:seed
 php artisan test
 ```
 
@@ -157,6 +177,7 @@ Se o cPanel nao permitir SSH, Composer ou migrations, prefira VPS ou um provedor
 ```bash
 docker compose up -d --build
 docker compose exec -T backend php artisan migrate --force
+docker compose exec -T backend php artisan db:seed --force
 docker compose exec -T backend php artisan test
 docker compose exec -T backend php artisan config:cache
 docker compose exec -T backend php artisan route:cache

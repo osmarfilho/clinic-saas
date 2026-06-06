@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { CalendarDays, LayoutDashboard, Settings, Users, WalletCards } from 'lucide-vue-next'
+import { Bell, CalendarDays, LayoutDashboard, Settings, Users, WalletCards } from 'lucide-vue-next'
 
 const items = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { label: 'Pacientes', to: '/patients', icon: Users },
   { label: 'Agenda', to: '/agenda', icon: CalendarDays },
   { label: 'Financeiro', to: '/financeiro', icon: WalletCards },
+  { label: 'Notificações', to: '/notificacoes', icon: Bell },
   { label: 'Configurações', to: '/configuracoes', icon: Settings },
 ]
 </script>

@@ -24,7 +24,11 @@ async function logout() {
     </label>
 
     <div class="ml-4 flex items-center gap-2">
-      <button class="grid h-10 w-10 place-items-center rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50" title="Notificações">
+      <button
+        class="grid h-10 w-10 place-items-center rounded-lg border border-[#E2E8F0] text-slate-500 hover:bg-slate-50"
+        title="Notificações"
+        @click="router.push('/notificacoes')"
+      >
         <Bell class="h-4 w-4" />
       </button>
       <div class="hidden items-center gap-2 rounded-lg border border-[#E2E8F0] px-3 py-2 md:flex">

@@ -1,8 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import DashboardPage from '@/pages/DashboardPage.vue'
+import AgendaPage from '@/pages/AgendaPage.vue'
+import FinancePage from '@/pages/FinancePage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
+import NotificationsPage from '@/pages/NotificationsPage.vue'
 import PatientsPage from '@/pages/PatientsPage.vue'
+import SettingsPage from '@/pages/SettingsPage.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -31,17 +35,26 @@ const router = createRouter({
     },
     {
       path: '/agenda',
-      redirect: '/dashboard',
+      name: 'agenda',
+      component: AgendaPage,
       meta: { requiresAuth: true },
     },
     {
       path: '/financeiro',
-      redirect: '/dashboard',
+      name: 'financeiro',
+      component: FinancePage,
       meta: { requiresAuth: true },
     },
     {
       path: '/configuracoes',
-      redirect: '/dashboard',
+      name: 'configuracoes',
+      component: SettingsPage,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/notificacoes',
+      name: 'notificacoes',
+      component: NotificationsPage,
       meta: { requiresAuth: true },
     },
   ],
