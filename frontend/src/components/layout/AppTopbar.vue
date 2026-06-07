@@ -13,7 +13,7 @@ const auth = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 const unreadCount = ref(0)
-const routesWithTableSearch = ['patients', 'agenda', 'financeiro']
+const routesWithTableSearch = ['patients', 'agenda', 'financeiro', 'super-admin-clinicas']
 const showGlobalSearch = computed(() => !routesWithTableSearch.includes(String(route.name)))
 let notificationTimer: ReturnType<typeof setInterval> | null = null
 
@@ -91,7 +91,7 @@ watch(() => route.fullPath, loadNotifications)
         </span>
         <span class="text-left">
           <span class="block text-sm font-bold text-foreground">{{ auth.user?.name ?? 'Usuário' }}</span>
-          <span class="block text-xs text-muted">Administrador</span>
+          <span class="block text-xs text-muted">{{ auth.user?.roles?.[0]?.name ?? 'Administrador' }}</span>
         </span>
         <ChevronDown class="h-4 w-4 text-muted" />
       </button>

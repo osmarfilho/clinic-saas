@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import {
   Bell,
   CalendarDays,
+  Building2,
   Headphones,
   LayoutDashboard,
   Plus,
@@ -10,6 +12,7 @@ import {
   WalletCards,
   X,
 } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/auth'
 
 defineProps<{
   mobileOpen?: boolean
@@ -19,7 +22,9 @@ defineEmits<{
   close: []
 }>()
 
-const items = [
+const auth = useAuthStore()
+
+const baseItems = [
   { label: 'Dashboard', to: '/dashboard', icon: LayoutDashboard },
   { label: 'Pacientes', to: '/patients', icon: Users },
   { label: 'Agenda', to: '/agenda', icon: CalendarDays },
@@ -27,6 +32,11 @@ const items = [
   { label: 'Notificações', to: '/notificacoes', icon: Bell },
   { label: 'Configurações', to: '/configuracoes', icon: Settings },
 ]
+
+const items = computed(() => [
+  ...baseItems,
+  ...(auth.isSuperAdmin ? [{ label: 'Clínicas', to: '/super-admin/clinicas', icon: Building2 }] : []),
+])
 </script>
 
 <template>

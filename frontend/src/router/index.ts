@@ -6,6 +6,7 @@ import FinancePage from '@/pages/FinancePage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
 import NotificationsPage from '@/pages/NotificationsPage.vue'
 import PatientsPage from '@/pages/PatientsPage.vue'
+import ClinicsPage from '@/pages/SuperAdminClinicsPage.vue'
 import SettingsPage from '@/pages/SettingsPage.vue'
 
 const router = createRouter({
@@ -57,6 +58,12 @@ const router = createRouter({
       component: NotificationsPage,
       meta: { requiresAuth: true },
     },
+    {
+      path: '/super-admin/clinicas',
+      name: 'super-admin-clinicas',
+      component: ClinicsPage,
+      meta: { requiresAuth: true, superAdmin: true },
+    },
   ],
 })
 
@@ -79,6 +86,10 @@ router.beforeEach(async (to) => {
 
       return { name: 'login', query: { redirect: to.fullPath } }
     }
+  }
+
+  if (to.meta.superAdmin && auth.isAuthenticated && !auth.isSuperAdmin) {
+    return { name: 'dashboard' }
   }
 })
 

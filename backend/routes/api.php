@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\ClinicNotificationController;
 use App\Http\Controllers\Api\ClinicSettingController;
+use App\Http\Controllers\Api\SuperAdmin\ClinicController as SuperAdminClinicController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\FinancialTransactionController;
 use App\Http\Controllers\Api\PatientController;
@@ -34,3 +35,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('notifications/read-all', [ClinicNotificationController::class, 'markAllAsRead'])->middleware('can:view notifications');
     Route::post('notifications/{notification}/read', [ClinicNotificationController::class, 'markAsRead'])->middleware('can:view notifications');
 });
+
+Route::middleware(['auth:sanctum', 'can:manage clinics'])
+    ->prefix('super-admin/clinics')
+    ->group(function () {
+        Route::get('/', [SuperAdminClinicController::class, 'index']);
+        Route::post('/', [SuperAdminClinicController::class, 'store']);
+        Route::put('/{clinic}', [SuperAdminClinicController::class, 'update']);
+        Route::patch('/{clinic}/activate', [SuperAdminClinicController::class, 'activate']);
+        Route::patch('/{clinic}/deactivate', [SuperAdminClinicController::class, 'deactivate']);
+    });
