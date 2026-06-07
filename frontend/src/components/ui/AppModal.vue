@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { X } from 'lucide-vue-next'
+
 defineProps<{
   open: boolean
   title: string
@@ -21,7 +23,7 @@ defineEmits<{
             aria-label="Fechar"
             @click="$emit('close')"
           >
-            x
+            <X class="h-4 w-4" />
           </button>
         </header>
         <div class="overflow-y-auto p-4 sm:p-5">

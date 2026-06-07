@@ -1,4 +1,8 @@
 <script setup lang="ts">
+defineOptions({
+  inheritAttrs: false,
+})
+
 defineProps<{
   id?: string
   label?: string
@@ -20,6 +24,7 @@ defineEmits<{
   <label class="grid gap-1.5 text-sm font-medium text-slate-700" :for="id">
     <span v-if="label">{{ label }}</span>
     <input
+      v-bind="$attrs"
       :id="id"
       :type="type ?? 'text'"
       :value="modelValue"

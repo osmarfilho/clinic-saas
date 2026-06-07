@@ -20,6 +20,7 @@ import {
   type AppointmentStatus,
 } from '@/services/appointments'
 import { listarPacientes, type Patient } from '@/services/patient'
+import { formatPhone } from '@/composables/usePhone'
 
 const today = new Date().toISOString().slice(0, 10)
 const appointments = ref<Appointment[]>([])
@@ -347,7 +348,7 @@ onMounted(async () => {
           <td class="px-4 py-3 font-semibold">{{ formatDateTime(appointment.starts_at) }}</td>
           <td class="px-4 py-3">
             <strong>{{ appointment.patient?.nome ?? 'Paciente avulso' }}</strong>
-            <p class="text-xs text-slate-500">{{ appointment.patient?.telefone ?? 'Sem contato' }}</p>
+            <p class="text-xs text-slate-500">{{ formatPhone(appointment.patient?.telefone ?? '') || 'Sem contato' }}</p>
           </td>
           <td class="px-4 py-3">
             <strong>{{ appointment.title }}</strong>

@@ -14,9 +14,9 @@ class ClinicFactory extends Factory
     {
         return [
             'name' => fake()->company(),
-            'document' => fake()->numerify('##.###.###/####-##'),
+            'document' => fake()->numerify('##############'),
             'email' => fake()->companyEmail(),
-            'phone' => fake()->phoneNumber(),
+            'phone' => fake()->numerify('###########'),
             'active' => true,
         ];
     }

@@ -5,11 +5,13 @@ import { Eye, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppPhoneInput from '@/components/ui/AppPhoneInput.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppTable from '@/components/ui/AppTable.vue'
 import AppToast from '@/components/ui/AppToast.vue'
 import { estadosBrasil } from '@/constants/estados'
+import { formatPhone, normalizePhone, validatePhone } from '@/composables/usePhone'
 import {
   atualizarPaciente,
   criarPaciente,
@@ -74,26 +76,12 @@ function maskCpf(value = '') {
     .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
 }
 
-function maskPhone(value = '') {
-  const digits = onlyDigits(value).slice(0, 11)
-
-  if (digits.length <= 10) {
-    return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2')
-  }
-
-  return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2')
-}
-
-function maskCep(value = '') {
-  return onlyDigits(value).slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2')
-}
-
 function formatCpf(value = '') {
   return maskCpf(value) || '-'
 }
 
-function formatPhone(value = '') {
-  return value ? maskPhone(value) : '-'
+function maskCep(value = '') {
+  return onlyDigits(value).slice(0, 8).replace(/(\d{5})(\d)/, '$1-$2')
 }
 
 function clearFormErrors() {
@@ -113,8 +101,9 @@ function validateForm() {
     errors.cpf = 'Informe um CPF com 11 números.'
   }
 
-  if (form.telefone && ![10, 11].includes(onlyDigits(form.telefone).length)) {
-    errors.telefone = 'Informe um telefone válido com DDD.'
+  const phoneError = validatePhone(form.telefone)
+  if (phoneError) {
+    errors.telefone = phoneError
   }
 
   if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
@@ -254,7 +243,7 @@ async function submit() {
     const payload = {
       ...form,
       cpf: onlyDigits(form.cpf),
-      telefone: onlyDigits(form.telefone),
+      telefone: normalizePhone(form.telefone),
       cep: onlyDigits(form.cep),
       numero: form.numero ? onlyDigits(form.numero) : '',
       estado: form.estado?.toUpperCase(),
@@ -312,11 +301,6 @@ watch([statusFilter, insuranceFilter], loadPatients)
 watch(() => form.cpf, (value) => {
   const masked = maskCpf(value)
   if (value !== masked) form.cpf = masked
-})
-
-watch(() => form.telefone, (value) => {
-  const masked = maskPhone(value)
-  if (value !== masked) form.telefone = masked
 })
 
 watch(() => form.cep, (value) => {
@@ -493,7 +477,7 @@ watch(() => form.numero, (value) => {
         <div class="grid gap-4 sm:grid-cols-2">
           <AppInput v-model="form.nome" label="Nome" :error="formErrors.nome" required />
           <AppInput v-model="form.cpf" label="CPF" :error="formErrors.cpf" inputmode="numeric" :maxlength="14" required />
-          <AppInput v-model="form.telefone" label="Telefone" :error="formErrors.telefone" inputmode="tel" :maxlength="15" />
+          <AppPhoneInput v-model="form.telefone" label="Telefone" :error="formErrors.telefone" />
           <AppInput v-model="form.email" label="E-mail" type="email" :error="formErrors.email" />
           <AppInput v-model="form.data_nascimento" label="Data de nascimento" type="date" />
           <AppInput v-model="form.convenio" label="Convênio" />
@@ -562,7 +546,7 @@ watch(() => form.numero, (value) => {
           </div>
           <div class="rounded-lg bg-slate-50 p-4">
             <span class="text-xs font-semibold uppercase text-slate-500">Telefone</span>
-            <p class="mt-1 text-sm font-medium text-[#0F172A]">{{ selectedPatient.telefone || '-' }}</p>
+            <p class="mt-1 text-sm font-medium text-[#0F172A]">{{ formatPhone(selectedPatient.telefone || '') || '-' }}</p>
           </div>
           <div class="rounded-lg bg-slate-50 p-4">
             <span class="text-xs font-semibold uppercase text-slate-500">Data de nascimento</span>

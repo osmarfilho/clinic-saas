@@ -4,13 +4,16 @@ import { Save } from 'lucide-vue-next'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppPhoneInput from '@/components/ui/AppPhoneInput.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { carregarConfiguracoes, salvarConfiguracoes, type ClinicSettings } from '@/services/settings'
+import { normalizePhone, validatePhone } from '@/composables/usePhone'
 
 const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
 const successMessage = ref('')
+const formErrors = reactive<{ phone?: string }>({})
 
 const form = reactive<ClinicSettings>({
   clinic_name: '',
@@ -39,13 +42,30 @@ async function loadSettings() {
   }
 }
 
+function validateForm() {
+  const phoneError = validatePhone(form.phone)
+
+  formErrors.phone = phoneError || undefined
+
+  return !phoneError
+}
+
 async function submit() {
+  if (!validateForm()) {
+    error.value = 'Confira os campos destacados antes de salvar.'
+    return
+  }
+
   saving.value = true
   error.value = ''
   successMessage.value = ''
+  formErrors.phone = undefined
 
   try {
-    Object.assign(form, await salvarConfiguracoes(form))
+    Object.assign(form, await salvarConfiguracoes({
+      ...form,
+      phone: normalizePhone(form.phone),
+    }))
     successMessage.value = 'Configurações salvas com sucesso.'
   } catch {
     error.value = 'Não foi possível salvar as configurações. Confira os campos.'
@@ -79,7 +99,7 @@ onMounted(loadSettings)
         <div class="grid gap-4 md:grid-cols-2">
           <AppInput v-model="form.clinic_name" label="Nome da clínica" required />
           <AppInput v-model="form.document" label="CNPJ/Documento" />
-          <AppInput v-model="form.phone" label="Telefone" />
+          <AppPhoneInput v-model="form.phone" label="Telefone" :error="formErrors.phone" />
           <AppInput v-model="form.email" label="E-mail" type="email" />
           <div class="md:col-span-2">
             <AppInput v-model="form.address" label="Endereço" />

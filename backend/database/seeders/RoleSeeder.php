@@ -27,6 +27,8 @@ class RoleSeeder extends Seeder
             'manage users',
         ];
 
+        $superAdminPermissions = array_merge($permissions, ['manage clinics']);
+
         foreach ($permissions as $permission) {
             Permission::firstOrCreate([
                 'name' => $permission,
@@ -35,7 +37,7 @@ class RoleSeeder extends Seeder
         }
 
         $roles = [
-            'Super Admin' => $permissions,
+            'Super Admin' => $superAdminPermissions,
             'Admin da Clínica' => $permissions,
             'Médico' => [
                 'view dashboard',
@@ -60,11 +62,11 @@ class RoleSeeder extends Seeder
         ];
 
         foreach ($roles as $roleName => $rolePermissions) {
-            Role::firstOrCreate(['name' => $roleName,'guard_name' => 'web',])->syncPermissions($rolePermissions);
+            Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web'])->syncPermissions($rolePermissions);
         }
 
         foreach (['admin', 'medico', 'recepcionista'] as $legacyRole) {
-            Role::firstOrCreate(['name' => $legacyRole,'guard_name' => 'web',]);
+            Role::firstOrCreate(['name' => $legacyRole, 'guard_name' => 'web']);
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();

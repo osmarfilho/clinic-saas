@@ -264,8 +264,8 @@ class ClinicModulesApiTest extends TestCase
 
         $this->putJson('/api/settings', [
             'clinic_name' => 'Clínica Teste',
-            'document' => '00.000.000/0001-00',
-            'phone' => '(85) 3333-0000',
+            'document' => '00000000000100',
+            'phone' => '8533330000',
             'email' => 'contato@clinic.test',
             'address' => 'Rua Teste, 123',
             'opening_time' => '08:00',
@@ -278,6 +278,33 @@ class ClinicModulesApiTest extends TestCase
             ->assertOk()
             ->assertJsonPath('clinic_name', 'Clínica Teste')
             ->assertJsonPath('daily_capacity', '20');
+
+        $invalidPhones = [
+            '839999999',
+            '839999999999999',
+            'telefone',
+            '(83)99999-9999',
+            '83 99999 9999',
+        ];
+
+        foreach ($invalidPhones as $phone) {
+            $this->putJson('/api/settings', [
+                'clinic_name' => 'Clínica Teste',
+                'document' => '00000000000100',
+                'phone' => $phone,
+                'email' => 'contato@clinic.test',
+                'address' => 'Rua Teste, 123',
+                'opening_time' => '08:00',
+                'closing_time' => '18:00',
+                'appointment_duration' => 30,
+                'daily_capacity' => 20,
+                'average_wait_minutes' => 12,
+                'satisfaction_rate' => 95,
+            ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['phone'])
+                ->assertJsonPath('errors.phone.0', 'Telefone deve conter entre 10 e 11 dígitos.');
+        }
 
         $notification = ClinicNotification::create([
             'user_id' => $user->id,

@@ -38,7 +38,7 @@ class AuthController extends Controller
 
         return response()->json([
             'message' => 'Login realizado com sucesso.',
-            'user' => $usuario,
+            'user' => $usuario->load('clinic', 'roles', 'permissions'),
             'token' => $token,
         ]);
     }

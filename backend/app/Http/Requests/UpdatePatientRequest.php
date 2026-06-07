@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Rules\PhoneNumber as PhoneNumberRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,7 +15,11 @@ class UpdatePatientRequest extends FormRequest
         foreach (['cpf', 'telefone', 'cep', 'numero'] as $field) {
             if ($this->has($field)) {
                 $data[$field] = $this->filled($field)
-                    ? ($field === 'cep' ? preg_replace('/\D/', '', (string) $this->input($field)) : $this->normalizeNumericInput($field))
+                    ? ($field === 'cep'
+                        ? preg_replace('/\D/', '', (string) $this->input($field))
+                        : ($field === 'telefone'
+                            ? trim((string) $this->input($field))
+                            : $this->normalizeNumericInput($field)))
                     : null;
             }
         }
@@ -46,7 +51,7 @@ class UpdatePatientRequest extends FormRequest
                     ->where('clinic_id', $this->user()?->clinic_id)
                     ->ignore($patientId),
             ],
-            'telefone' => ['nullable', 'string', 'digits_between:10,11'],
+            'telefone' => ['nullable', 'string', new PhoneNumberRule()],
             'email' => ['nullable', 'email', 'max:255'],
             'data_nascimento' => ['nullable', 'date'],
             'convenio' => ['nullable', 'string', 'max:255'],
@@ -67,7 +72,6 @@ class UpdatePatientRequest extends FormRequest
             'numero.integer' => 'O número do endereço deve conter apenas números.',
             'numero.min' => 'O número do endereço deve ser maior que zero.',
             'cpf.digits' => 'O CPF deve conter exatamente 11 números.',
-            'telefone.digits_between' => 'O telefone deve conter 10 ou 11 números, incluindo DDD.',
             'email.email' => 'Informe um e-mail válido.',
         ];
     }

@@ -93,20 +93,47 @@ class PatientApiTest extends TestCase
 
         $this->postJson('/api/patients', [
             ...$this->patientPayload(),
-            'cpf' => '123ABC',
-            'telefone' => 'telefone',
+            'cpf' => '12345678901',
+            'telefone' => '8399999999',
         ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors(['cpf', 'telefone']);
+            ->assertCreated()
+            ->assertJsonPath('telefone', '8399999999');
 
         $this->postJson('/api/patients', [
             ...$this->patientPayload(),
-            'cpf' => '123.456.789-01',
-            'telefone' => '(11) 98888-7777',
+            'cpf' => '123ABC',
+            'telefone' => '83999999999',
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['cpf']);
+
+        $invalidPhones = [
+            '839999999',
+            '839999999999999',
+            'telefone',
+            '(83)99999-9999',
+            '83 99999 9999',
+        ];
+
+        foreach ($invalidPhones as $phone) {
+            $this->postJson('/api/patients', [
+                ...$this->patientPayload(),
+                'cpf' => fake()->unique()->numerify('###########'),
+                'telefone' => $phone,
+            ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['telefone'])
+                ->assertJsonPath('errors.telefone.0', 'Telefone deve conter entre 10 e 11 dígitos.');
+        }
+
+        $this->postJson('/api/patients', [
+            ...$this->patientPayload(),
+            'cpf' => '22222222222',
+            'telefone' => '83999999999',
         ])
             ->assertCreated()
-            ->assertJsonPath('cpf', '12345678901')
-            ->assertJsonPath('telefone', '11988887777');
+            ->assertJsonPath('cpf', '22222222222')
+            ->assertJsonPath('telefone', '83999999999');
     }
 
     public function test_patient_address_number_must_be_positive_integer(): void

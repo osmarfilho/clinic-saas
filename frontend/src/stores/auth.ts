@@ -6,6 +6,11 @@ interface User {
   name: string
   email: string
   roles?: Array<{ id: number; name: string }>
+  permissions?: Array<{ id: number; name: string }>
+  clinic?: {
+    id: number
+    name: string
+  }
 }
 
 export const useAuthStore = defineStore('auth', {
@@ -16,6 +21,7 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.token),
+    isSuperAdmin: (state) => state.user?.roles?.some((role) => role.name === 'Super Admin') ?? false,
   },
   actions: {
     async login(email: string, password: string) {
