@@ -11,7 +11,7 @@ withDefaults(
 
 <template>
   <span
-    class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold"
+    class="inline-flex min-w-[6.5rem] items-center justify-center rounded-full px-3 py-1 text-center text-xs font-semibold whitespace-nowrap sm:min-w-[7rem]"
     :class="{
       'bg-emerald-50 text-emerald-700': tone === 'success',
       'bg-amber-50 text-amber-700': tone === 'warning',
