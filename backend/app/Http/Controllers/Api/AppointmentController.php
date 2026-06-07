@@ -3,91 +3,76 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreAppointmentRequest;
+use App\Http\Requests\UpdateAppointmentRequest;
+use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
 use App\Models\ClinicNotification;
 use App\Services\AuditLogger;
-use Carbon\Carbon;
+use App\Services\AppointmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AppointmentController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, AppointmentService $service): AnonymousResourceCollection
     {
-        $appointments = Appointment::query()
-            ->with('patient:id,nome,cpf,telefone,email')
-            ->when($request->filled('date'), fn ($query) => $query->whereDate('starts_at', $request->date('date')))
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $search = $request->string('search')->toString();
-
-                $query->where(function ($query) use ($search) {
-                    $query
-                        ->where('title', 'like', "%{$search}%")
-                        ->orWhere('professional', 'like', "%{$search}%")
-                        ->orWhereHas('patient', fn ($query) => $query->where('nome', 'like', "%{$search}%"));
-                });
-            })
-            ->orderBy('starts_at')
-            ->paginate($request->integer('per_page', 30));
-
-        return response()->json($appointments);
+        return AppointmentResource::collection(
+            $service->paginate($request->only(['date', 'status', 'search']), $request->integer('per_page', 30))
+        );
     }
 
-    public function store(Request $request, AuditLogger $audit): JsonResponse
+    public function store(StoreAppointmentRequest $request, AppointmentService $service, AuditLogger $audit): JsonResponse
     {
-        $data = $this->validatedData($request);
-        $this->ensureScheduleIsAvailable($data);
+        $this->authorize('create', Appointment::class);
 
-        $appointment = Appointment::create($data);
+        $appointment = $service->create($request->validated());
         $audit->log($request, 'appointment.created', $appointment);
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
-            'title' => 'Consulta agendada',
+            'title' => 'Agendamento criado',
             'body' => 'Novo agendamento criado para '.$this->appointmentPatientName($appointment).' em '.$appointment->starts_at->format('d/m/Y').' às '.$appointment->starts_at->format('H:i').'.',
             'type' => 'success',
             'data' => ['appointment_id' => $appointment->id],
         ]);
 
-        return response()->json($appointment->load('patient:id,nome,cpf,telefone,email'), 201);
+        return response()->json((new AppointmentResource($appointment->load('patient:id,nome,cpf,telefone,email')))->resolve(), 201);
     }
 
     public function show(Appointment $appointment): JsonResponse
     {
         $this->authorize('view', $appointment);
 
-        return response()->json($appointment->load('patient:id,nome,cpf,telefone,email'));
+        return response()->json((new AppointmentResource($appointment->load('patient:id,nome,cpf,telefone,email')))->resolve());
     }
 
-    public function update(Request $request, Appointment $appointment, AuditLogger $audit): JsonResponse
+    public function update(UpdateAppointmentRequest $request, Appointment $appointment, AppointmentService $service, AuditLogger $audit): JsonResponse
     {
         $this->authorize('update', $appointment);
 
-        $data = $this->validatedData($request, true);
-        $this->ensureScheduleIsAvailable($data, $appointment);
-
         $original = $appointment->replicate();
-        $appointment->update($data);
+        $service->update($appointment, $request->validated());
         $changedFields = array_keys($appointment->getChanges());
-        $wasCanceled = $appointment->status === 'canceled' && $original->status !== 'canceled';
-        $audit->log($request, $wasCanceled ? 'appointment.canceled' : 'appointment.updated', $appointment, [
+        $statusChanged = $original->status !== $appointment->status;
+        $audit->log($request, $statusChanged ? 'appointment.status_changed' : 'appointment.updated', $appointment, [
             'changed_fields' => $changedFields,
+            'previous_status' => $original->status,
+            'current_status' => $appointment->status,
         ]);
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
-            'title' => $wasCanceled ? 'Consulta cancelada' : 'Agenda atualizada',
-            'body' => $wasCanceled
-                ? 'Agendamento de '.$this->appointmentPatientName($appointment).' foi cancelado.'
+            'title' => $statusChanged ? 'Status do agendamento atualizado' : 'Agenda atualizada',
+            'body' => $statusChanged
+                ? 'Agendamento de '.$this->appointmentPatientName($appointment).' alterado de '.$this->statusLabel($original->status).' para '.$this->statusLabel($appointment->status).'.'
                 : $this->appointmentUpdatedMessage($appointment, $original, $changedFields),
-            'type' => $wasCanceled ? 'warning' : 'info',
+            'type' => $statusChanged ? 'info' : 'info',
             'data' => ['appointment_id' => $appointment->id],
         ]);
 
-        return response()->json($appointment->refresh()->load('patient:id,nome,cpf,telefone,email'));
+        return response()->json((new AppointmentResource($appointment->refresh()->load('patient:id,nome,cpf,telefone,email')))->resolve());
     }
 
     public function destroy(Request $request, Appointment $appointment, AuditLogger $audit): JsonResponse
@@ -98,8 +83,8 @@ class AppointmentController extends Controller
 
         ClinicNotification::create([
             'user_id' => $request->user()?->id,
-            'title' => 'Consulta cancelada',
-            'body' => 'Agendamento de '.$this->appointmentPatientName($appointment).' foi cancelado.',
+            'title' => 'Agendamento removido',
+            'body' => 'Agendamento de '.$this->appointmentPatientName($appointment).' foi removido.',
             'type' => 'warning',
             'data' => ['appointment_id' => $appointment->id],
         ]);
@@ -111,68 +96,19 @@ class AppointmentController extends Controller
         ]);
     }
 
-    private function validatedData(Request $request, bool $partial = false): array
-    {
-        $required = $partial ? 'sometimes' : 'required';
-
-        return $request->validate([
-            'patient_id' => [
-                'nullable',
-                Rule::exists('patients', 'id')->where('clinic_id', $request->user()?->clinic_id),
-            ],
-            'title' => [$required, 'string', 'max:255'],
-            'professional' => ['nullable', 'string', 'max:255'],
-            'type' => [$required, 'string', 'max:80'],
-            'starts_at' => [$required, 'date', 'after_or_equal:now'],
-            'ends_at' => ['nullable', 'date', 'after:starts_at'],
-            'status' => [$required, Rule::in(['scheduled', 'confirmed', 'completed', 'canceled', 'no_show'])],
-            'price' => ['nullable', 'numeric', 'min:0', 'max:999999.99'],
-            'notes' => ['nullable', 'string'],
-        ], [
-            'starts_at.after_or_equal' => 'O agendamento não pode ser criado em uma data ou horário passado.',
-            'ends_at.after' => 'O horário de término deve ser posterior ao início.',
-        ]);
-    }
-
-    private function ensureScheduleIsAvailable(array $data, ?Appointment $appointment = null): void
-    {
-        if (! array_key_exists('starts_at', $data) && ! array_key_exists('ends_at', $data) && ! array_key_exists('professional', $data)) {
-            return;
-        }
-
-        $startsAt = Carbon::parse($data['starts_at'] ?? $appointment?->starts_at);
-        $endsAt = isset($data['ends_at'])
-            ? Carbon::parse($data['ends_at'])
-            : Carbon::parse($appointment?->ends_at ?? $startsAt->copy()->addMinutes(30));
-        $professional = trim((string) ($data['professional'] ?? $appointment?->professional ?? ''));
-
-        if ($professional === '') {
-            return;
-        }
-
-        $hasConflict = Appointment::query()
-            ->where('professional', $professional)
-            ->whereNotIn('status', ['canceled', 'no_show'])
-            ->when($appointment, fn ($query) => $query->whereKeyNot($appointment->id))
-            ->whereDate('starts_at', $startsAt->toDateString())
-            ->get(['id', 'starts_at', 'ends_at'])
-            ->contains(function (Appointment $item) use ($startsAt, $endsAt) {
-                $itemStartsAt = Carbon::parse($item->starts_at);
-                $itemEndsAt = $item->ends_at ? Carbon::parse($item->ends_at) : $itemStartsAt->copy()->addMinutes(30);
-
-                return $itemStartsAt->lt($endsAt) && $itemEndsAt->gt($startsAt);
-            });
-
-        if ($hasConflict) {
-            throw ValidationException::withMessages([
-                'starts_at' => ['Já existe um agendamento para este profissional nesse horário.'],
-            ]);
-        }
-    }
-
     private function appointmentPatientName(Appointment $appointment): string
     {
         return $appointment->patient?->nome ?? 'Paciente avulso';
+    }
+
+    private function statusLabel(string $status): string
+    {
+        return [
+            'scheduled' => 'Agendado',
+            'completed' => 'Concluído',
+            'no_show' => 'Faltou',
+            'cancelled' => 'Cancelado',
+        ][$status] ?? $status;
     }
 
     private function appointmentUpdatedMessage(Appointment $appointment, Appointment $original, array $changedFields): string

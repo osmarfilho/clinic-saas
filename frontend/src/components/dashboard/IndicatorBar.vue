@@ -1,14 +1,23 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { LucideIcon } from 'lucide-vue-next'
 
 type Accent = 'emerald' | 'teal' | 'sky' | 'amber' | 'violet' | 'rose'
 
-defineProps<{
+const props = defineProps<{
   icon: LucideIcon
   label: string
   value: number
   color: Accent
+  maxValue?: number
+  suffix?: string
 }>()
+
+const progress = computed(() => {
+  const max = props.maxValue || 100
+
+  return `${Math.max(0, Math.min(100, (props.value / max) * 100))}%`
+})
 
 const classes: Record<Accent, { icon: string; bar: string }> = {
   emerald: { icon: 'bg-chart-emerald-soft text-chart-emerald', bar: 'bg-chart-emerald' },
@@ -29,10 +38,10 @@ const classes: Record<Accent, { icon: string; bar: string }> = {
         </span>
         <span class="truncate text-sm font-medium text-foreground">{{ label }}</span>
       </div>
-      <strong class="text-sm font-bold text-foreground">{{ value }}%</strong>
+      <strong class="text-sm font-bold text-foreground">{{ value }}{{ suffix ?? '' }}</strong>
     </div>
     <div class="h-2 rounded-full bg-surface-muted">
-      <div class="h-2 rounded-full transition-all duration-500" :class="classes[color].bar" :style="{ width: `${Math.max(0, Math.min(100, value))}%` }" />
+      <div class="h-2 rounded-full transition-all duration-500" :class="classes[color].bar" :style="{ width: progress }" />
     </div>
   </div>
 </template>

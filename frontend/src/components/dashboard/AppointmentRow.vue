@@ -2,7 +2,7 @@
 import { MoreHorizontal } from 'lucide-vue-next'
 
 type Category = 'Retorno' | 'Consulta' | 'Exame' | 'Teleconsulta' | string
-type Status = 'scheduled' | 'confirmed' | 'completed' | 'canceled' | 'no_show'
+type Status = 'scheduled' | 'completed' | 'no_show' | 'cancelled'
 
 const props = defineProps<{
   time: string
@@ -21,10 +21,9 @@ const tagClasses: Record<string, string> = {
 
 const dotClasses: Record<Status, string> = {
   scheduled: 'bg-chart-sky',
-  confirmed: 'bg-brand',
   completed: 'bg-chart-emerald',
-  canceled: 'bg-chart-rose',
   no_show: 'bg-chart-amber',
+  cancelled: 'bg-chart-rose',
 }
 
 function initials(name: string) {

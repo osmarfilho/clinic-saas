@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\AppointmentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\ClinicNotification;
@@ -22,14 +23,21 @@ class DashboardController extends Controller
         $dailyCapacity = max((int) $settings['daily_capacity'], 1);
 
         $appointmentsToday = Appointment::query()->whereDate('starts_at', $today)->count();
-        $pendingToday = Appointment::query()
+        $scheduledToday = Appointment::query()
             ->whereDate('starts_at', $today)
-            ->whereIn('status', ['scheduled', 'confirmed'])
+            ->where('status', AppointmentStatus::Scheduled->value)
             ->count();
-        $monthAppointments = Appointment::query()->whereBetween('starts_at', [$startOfMonth, $endOfMonth])->count();
+        $completedToday = Appointment::query()
+            ->whereDate('starts_at', $today)
+            ->where('status', AppointmentStatus::Completed->value)
+            ->count();
         $monthNoShows = Appointment::query()
             ->whereBetween('starts_at', [$startOfMonth, $endOfMonth])
-            ->where('status', 'no_show')
+            ->where('status', AppointmentStatus::NoShow->value)
+            ->count();
+        $monthCancellations = Appointment::query()
+            ->whereBetween('starts_at', [$startOfMonth, $endOfMonth])
+            ->where('status', AppointmentStatus::Cancelled->value)
             ->count();
 
         $monthlyRevenue = FinancialTransaction::query()
@@ -48,15 +56,19 @@ class DashboardController extends Controller
             'metrics' => [
                 'active_patients' => Patient::query()->where('ativo', true)->count(),
                 'appointments_today' => $appointmentsToday,
-                'pending_today' => $pendingToday,
+                'scheduled_today' => $scheduledToday,
+                'completed_today' => $completedToday,
+                'no_show_month' => $monthNoShows,
+                'cancelled_month' => $monthCancellations,
                 'monthly_revenue' => (float) $monthlyRevenue,
                 'monthly_expenses' => (float) $monthlyExpenses,
                 'occupancy_rate' => round(($appointmentsToday / $dailyCapacity) * 100),
             ],
             'indicators' => [
-                'average_wait_minutes' => (int) $settings['average_wait_minutes'],
-                'satisfaction_rate' => (int) $settings['satisfaction_rate'],
-                'no_show_rate' => $monthAppointments > 0 ? round(($monthNoShows / $monthAppointments) * 100) : 0,
+                'scheduled_today' => $scheduledToday,
+                'completed_today' => $completedToday,
+                'no_show_month' => $monthNoShows,
+                'cancelled_month' => $monthCancellations,
             ],
             'schedule' => Appointment::query()
                 ->with('patient:id,nome')

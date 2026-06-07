@@ -12,6 +12,11 @@ class AppointmentPolicy
         return $user->isSuperAdmin() ? true : null;
     }
 
+    public function create(User $user): bool
+    {
+        return $user->can('manage appointments');
+    }
+
     public function view(User $user, Appointment $appointment): bool
     {
         return $user->can('manage appointments') && $appointment->belongsToSameClinicAs($user);

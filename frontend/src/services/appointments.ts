@@ -1,7 +1,7 @@
 import api from './api'
 import type { Patient } from './patient'
 
-export type AppointmentStatus = 'scheduled' | 'confirmed' | 'completed' | 'canceled' | 'no_show'
+export type AppointmentStatus = 'scheduled' | 'completed' | 'no_show' | 'cancelled'
 
 export interface Appointment {
   id: number
@@ -29,6 +29,8 @@ export interface AppointmentPayload {
   notes: string
 }
 
+export type AppointmentUpdatePayload = Partial<AppointmentPayload>
+
 interface PaginatedAppointments {
   data: Appointment[]
   current_page: number
@@ -48,7 +50,7 @@ export async function criarAgendamento(payload: AppointmentPayload) {
   return data
 }
 
-export async function atualizarAgendamento(id: number, payload: Partial<AppointmentPayload>) {
+export async function atualizarAgendamento(id: number, payload: AppointmentUpdatePayload) {
   const { data } = await api.put<Appointment>(`/appointments/${id}`, payload)
 
   return data

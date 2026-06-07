@@ -19,7 +19,7 @@ class ClinicModulesApiTest extends TestCase
             ->assertUnauthorized();
     }
 
-    public function test_authenticated_user_can_manage_appointments(): void
+    public function test_authenticated_user_can_create_and_list_scheduled_appointment(): void
     {
         $this->actingAsClinicRole();
         $patient = Patient::create($this->patientPayload());
@@ -41,20 +41,84 @@ class ClinicModulesApiTest extends TestCase
             ->assertJsonPath('title', 'Consulta inicial')
             ->assertJsonPath('patient.nome', 'Maria Souza');
 
-        $appointmentId = $response->json('id');
-
-        $this->putJson("/api/appointments/{$appointmentId}", [
-            'status' => 'confirmed',
-        ])
-            ->assertOk()
-            ->assertJsonPath('status', 'confirmed');
-
         $this->getJson('/api/appointments')
             ->assertOk()
             ->assertJsonPath('data.0.title', 'Consulta inicial');
     }
 
-    public function test_appointment_validation_blocks_past_dates_and_schedule_conflicts(): void
+    public function test_authenticated_user_can_conclude_past_appointment_and_register_audit(): void
+    {
+        $user = $this->actingAsClinicRole();
+        $patient = Patient::create($this->patientPayload());
+        $appointment = Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta inicial',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->subDay()->setTime(9, 0),
+            'ends_at' => now()->subDay()->setTime(9, 30),
+            'status' => 'scheduled',
+            'price' => 180,
+        ]);
+
+        $this->putJson("/api/appointments/{$appointment->id}", [
+            'status' => 'completed',
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'completed');
+
+        $this->assertDatabaseHas('audit_logs', [
+            'clinic_id' => $user->clinic_id,
+            'user_id' => $user->id,
+            'event' => 'appointment.status_changed',
+        ]);
+    }
+
+    public function test_authenticated_user_can_mark_past_appointment_as_no_show(): void
+    {
+        $this->actingAsClinicRole();
+        $patient = Patient::create($this->patientPayload());
+        $appointment = Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta faltante',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->subDay()->setTime(10, 0),
+            'ends_at' => now()->subDay()->setTime(10, 30),
+            'status' => 'scheduled',
+            'price' => 180,
+        ]);
+
+        $this->putJson("/api/appointments/{$appointment->id}", [
+            'status' => 'no_show',
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'no_show');
+    }
+
+    public function test_authenticated_user_can_cancel_past_appointment(): void
+    {
+        $this->actingAsClinicRole();
+        $patient = Patient::create($this->patientPayload());
+        $appointment = Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta para cancelar',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->subDay()->setTime(11, 0),
+            'ends_at' => now()->subDay()->setTime(11, 30),
+            'status' => 'scheduled',
+            'price' => 180,
+        ]);
+
+        $this->putJson("/api/appointments/{$appointment->id}", [
+            'status' => 'cancelled',
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'cancelled');
+    }
+
+    public function test_appointment_creation_blocks_past_dates_and_schedule_conflicts(): void
     {
         $this->actingAsClinicRole();
         $patient = Patient::create($this->patientPayload());
@@ -97,13 +161,13 @@ class ClinicModulesApiTest extends TestCase
             ->assertJsonValidationErrors(['starts_at']);
     }
 
-    public function test_canceling_appointment_creates_notification(): void
+    public function test_updating_appointment_date_to_past_is_rejected(): void
     {
-        $user = $this->actingAsClinicRole();
+        $this->actingAsClinicRole();
         $patient = Patient::create($this->patientPayload());
         $appointment = Appointment::create([
             'patient_id' => $patient->id,
-            'title' => 'Consulta para cancelar',
+            'title' => 'Consulta futura',
             'professional' => 'Dra. Paula',
             'type' => 'Consulta',
             'starts_at' => now()->addDay()->setTime(11, 0),
@@ -113,17 +177,95 @@ class ClinicModulesApiTest extends TestCase
         ]);
 
         $this->putJson("/api/appointments/{$appointment->id}", [
-            'status' => 'canceled',
+            'starts_at' => now()->subDay()->setTime(11, 0)->format('Y-m-d H:i:s'),
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['starts_at']);
+    }
+
+    public function test_updating_past_appointment_status_to_completed_is_allowed(): void
+    {
+        $this->actingAsClinicRole();
+        $patient = Patient::create($this->patientPayload());
+        $appointment = Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta antiga',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->subDay()->setTime(8, 0),
+            'ends_at' => now()->subDay()->setTime(8, 30),
+            'status' => 'scheduled',
+            'price' => 180,
+        ]);
+
+        $this->putJson("/api/appointments/{$appointment->id}", [
+            'status' => 'completed',
         ])
             ->assertOk()
-            ->assertJsonPath('status', 'canceled');
+            ->assertJsonPath('status', 'completed');
+    }
 
-        $this->assertDatabaseHas('clinic_notifications', [
-            'user_id' => $user->id,
-            'title' => 'Consulta cancelada',
-            'body' => 'Agendamento de Maria Souza foi cancelado.',
-            'type' => 'warning',
+    public function test_updating_past_appointment_status_to_no_show_is_allowed(): void
+    {
+        $this->actingAsClinicRole();
+        $patient = Patient::create($this->patientPayload());
+        $appointment = Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta faltou',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->subDay()->setTime(9, 0),
+            'ends_at' => now()->subDay()->setTime(9, 30),
+            'status' => 'scheduled',
+            'price' => 180,
         ]);
+
+        $this->putJson("/api/appointments/{$appointment->id}", [
+            'status' => 'no_show',
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'no_show');
+    }
+
+    public function test_updating_past_appointment_status_to_cancelled_is_allowed(): void
+    {
+        $this->actingAsClinicRole();
+        $patient = Patient::create($this->patientPayload());
+        $appointment = Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta cancelada',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->subDay()->setTime(10, 0),
+            'ends_at' => now()->subDay()->setTime(10, 30),
+            'status' => 'scheduled',
+            'price' => 180,
+        ]);
+
+        $this->putJson("/api/appointments/{$appointment->id}", [
+            'status' => 'cancelled',
+        ])
+            ->assertOk()
+            ->assertJsonPath('status', 'cancelled');
+    }
+
+    public function test_invalid_appointment_status_is_rejected(): void
+    {
+        $this->actingAsClinicRole();
+        $patient = Patient::create($this->patientPayload());
+
+        $this->postJson('/api/appointments', [
+            'patient_id' => $patient->id,
+            'title' => 'Consulta inválida',
+            'professional' => 'Dra. Paula',
+            'type' => 'Consulta',
+            'starts_at' => now()->addDay()->setTime(11, 0),
+            'ends_at' => now()->addDay()->setTime(11, 30),
+            'status' => 'confirmed',
+            'price' => 180,
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['status']);
     }
 
     public function test_authenticated_user_can_manage_financial_transactions_and_dashboard(): void
@@ -134,8 +276,41 @@ class ClinicModulesApiTest extends TestCase
             'patient_id' => $patient->id,
             'title' => 'Consulta inicial',
             'type' => 'Consulta',
+            'starts_at' => now()->subDay()->setTime(9, 0),
+            'status' => 'completed',
+            'price' => 180,
+        ]);
+
+        Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta agendada',
+            'type' => 'Consulta',
+            'starts_at' => now()->setTime(8, 0),
+            'status' => 'scheduled',
+            'price' => 180,
+        ]);
+        Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta concluída',
+            'type' => 'Consulta',
             'starts_at' => now()->setTime(9, 0),
             'status' => 'completed',
+            'price' => 180,
+        ]);
+        Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta faltou',
+            'type' => 'Consulta',
+            'starts_at' => now()->setTime(10, 0),
+            'status' => 'no_show',
+            'price' => 180,
+        ]);
+        Appointment::create([
+            'patient_id' => $patient->id,
+            'title' => 'Consulta cancelada',
+            'type' => 'Consulta',
+            'starts_at' => now()->setTime(11, 0),
+            'status' => 'cancelled',
             'price' => 180,
         ]);
 
@@ -157,7 +332,15 @@ class ClinicModulesApiTest extends TestCase
         $this->getJson('/api/dashboard')
             ->assertOk()
             ->assertJsonPath('metrics.active_patients', 1)
-            ->assertJsonPath('metrics.monthly_revenue', 180);
+            ->assertJsonPath('metrics.monthly_revenue', 180)
+            ->assertJsonPath('metrics.scheduled_today', 1)
+            ->assertJsonPath('metrics.completed_today', 1)
+            ->assertJsonPath('metrics.no_show_month', 1)
+            ->assertJsonPath('metrics.cancelled_month', 1)
+            ->assertJsonPath('indicators.scheduled_today', 1)
+            ->assertJsonPath('indicators.completed_today', 1)
+            ->assertJsonPath('indicators.no_show_month', 1)
+            ->assertJsonPath('indicators.cancelled_month', 1);
     }
 
     public function test_financial_summary_separates_paid_and_pending_totals(): void

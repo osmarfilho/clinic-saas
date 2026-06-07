@@ -6,15 +6,19 @@ export interface DashboardData {
   metrics: {
     active_patients: number
     appointments_today: number
-    pending_today: number
+    scheduled_today: number
+    completed_today: number
+    no_show_month: number
+    cancelled_month: number
     monthly_revenue: number
     monthly_expenses: number
     occupancy_rate: number
   }
   indicators: {
-    average_wait_minutes: number
-    satisfaction_rate: number
-    no_show_rate: number
+    scheduled_today: number
+    completed_today: number
+    no_show_month: number
+    cancelled_month: number
   }
   schedule: Appointment[]
   activities: ClinicNotification[]

@@ -18,6 +18,7 @@ import {
   type Appointment,
   type AppointmentPayload,
   type AppointmentStatus,
+  type AppointmentUpdatePayload,
 } from '@/services/appointments'
 import { listarPacientes, type Patient } from '@/services/patient'
 import { formatPhone } from '@/composables/usePhone'
@@ -34,9 +35,11 @@ const error = ref('')
 const successMessage = ref('')
 const modalOpen = ref(false)
 const editingId = ref<number | null>(null)
+const editingAppointment = ref<Appointment | null>(null)
 const appointmentPendingDeletion = ref<Appointment | null>(null)
 const deleteModalOpen = ref(false)
 const deleting = ref(false)
+const updatingStatusId = ref<number | null>(null)
 const formErrors = reactive<Partial<Record<keyof AppointmentPayload, string>>>({})
 
 const emptyForm: AppointmentPayload = {
@@ -55,19 +58,26 @@ const form = reactive<AppointmentPayload>({ ...emptyForm })
 
 const canSubmit = computed(() => Object.keys(validateForm()).length === 0 && !saving.value)
 
+const appointmentStatusOptions = [
+  { value: 'scheduled', label: 'Agendado' },
+  { value: 'completed', label: 'Concluído' },
+  { value: 'no_show', label: 'Faltou' },
+  { value: 'cancelled', label: 'Cancelado' },
+] as const
+
 const statusLabels: Record<AppointmentStatus, string> = {
   scheduled: 'Agendado',
-  confirmed: 'Confirmado',
   completed: 'Concluído',
-  canceled: 'Cancelado',
   no_show: 'Faltou',
+  cancelled: 'Cancelado',
 }
 
 const totals = computed(() => ({
   total: appointments.value.length,
-  confirmed: appointments.value.filter((item) => item.status === 'confirmed').length,
+  scheduled: appointments.value.filter((item) => item.status === 'scheduled').length,
   completed: appointments.value.filter((item) => item.status === 'completed').length,
-  pending: appointments.value.filter((item) => ['scheduled', 'confirmed'].includes(item.status)).length,
+  noShow: appointments.value.filter((item) => item.status === 'no_show').length,
+  cancelled: appointments.value.filter((item) => item.status === 'cancelled').length,
 }))
 
 function formatDateTime(value: string) {
@@ -80,8 +90,9 @@ function formatDateTime(value: string) {
 }
 
 function statusTone(value: AppointmentStatus) {
-  if (value === 'completed' || value === 'confirmed') return 'success'
-  if (value === 'canceled' || value === 'no_show') return 'danger'
+  if (value === 'completed') return 'success'
+  if (value === 'cancelled') return 'warning'
+  if (value === 'no_show') return 'danger'
   return 'neutral'
 }
 
@@ -147,6 +158,7 @@ function openCreateModal() {
 
 function openEditModal(appointment: Appointment) {
   editingId.value = appointment.id
+  editingAppointment.value = appointment
   Object.assign(form, {
     patient_id: appointment.patient_id ?? null,
     title: appointment.title,
@@ -164,7 +176,32 @@ function openEditModal(appointment: Appointment) {
 function closeModal() {
   modalOpen.value = false
   editingId.value = null
+  editingAppointment.value = null
   resetForm()
+}
+
+function buildUpdatePayload(): AppointmentUpdatePayload {
+  const original = editingAppointment.value
+  if (!original) {
+    return {}
+  }
+
+  const payload: AppointmentUpdatePayload = {}
+  const originalStartsAt = original.starts_at.replace(' ', 'T').slice(0, 16)
+  const originalEndsAt = original.ends_at ? original.ends_at.replace(' ', 'T').slice(0, 16) : null
+  const normalizedPatientId = form.patient_id ?? null
+
+  if (normalizedPatientId !== (original.patient_id ?? null)) payload.patient_id = normalizedPatientId
+  if (form.title !== original.title) payload.title = form.title
+  if ((form.professional || '') !== (original.professional ?? '')) payload.professional = form.professional
+  if (form.type !== original.type) payload.type = form.type
+  if (form.starts_at !== originalStartsAt) payload.starts_at = form.starts_at
+  if ((form.ends_at ?? null) !== originalEndsAt) payload.ends_at = form.ends_at
+  if (form.status !== original.status) payload.status = form.status
+  if (Number(form.price || 0) !== Number(original.price || 0)) payload.price = Number(form.price || 0)
+  if ((form.notes ?? '') !== (original.notes ?? '')) payload.notes = form.notes
+
+  return payload
 }
 
 async function loadPatients() {
@@ -204,17 +241,17 @@ async function submit() {
   clearFormErrors()
 
   try {
-    const payload = {
-      ...form,
-      patient_id: form.patient_id || null,
-      ends_at: form.ends_at || null,
-      price: Number(form.price || 0),
-    }
-
     if (editingId.value) {
+      const payload = buildUpdatePayload()
       await atualizarAgendamento(editingId.value, payload)
       successMessage.value = 'Agendamento atualizado com sucesso.'
     } else {
+      const payload = {
+        ...form,
+        patient_id: form.patient_id || null,
+        ends_at: form.ends_at || null,
+        price: Number(form.price || 0),
+      }
       await criarAgendamento(payload)
       successMessage.value = 'Agendamento criado com sucesso.'
     }
@@ -226,6 +263,29 @@ async function submit() {
   } finally {
     saving.value = false
   }
+}
+
+async function updateAppointmentStatus(appointment: Appointment, nextStatus: AppointmentStatus) {
+  if (appointment.status === nextStatus) return
+
+  updatingStatusId.value = appointment.id
+  error.value = ''
+  successMessage.value = ''
+
+  try {
+    await atualizarAgendamento(appointment.id, { status: nextStatus })
+    successMessage.value = 'Status do agendamento atualizado com sucesso.'
+    await loadAppointments()
+  } catch (requestError) {
+    error.value = errorMessageFromResponse(requestError, 'Não foi possível atualizar o status do agendamento.')
+  } finally {
+    updatingStatusId.value = null
+  }
+}
+
+function handleQuickStatusChange(appointment: Appointment, event: Event) {
+  const target = event.target as HTMLSelectElement
+  void updateAppointmentStatus(appointment, target.value as AppointmentStatus)
 }
 
 function openDeleteModal(appointment: Appointment) {
@@ -278,22 +338,26 @@ onMounted(async () => {
       </AppButton>
     </div>
 
-    <section class="mb-4 grid gap-3 md:grid-cols-4">
+    <section class="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
       <AppCard class="p-4">
         <p class="text-sm text-slate-500">Total no filtro</p>
         <strong class="mt-2 block text-2xl">{{ totals.total }}</strong>
       </AppCard>
       <AppCard class="p-4">
-        <p class="text-sm text-slate-500">Confirmados</p>
-        <strong class="mt-2 block text-2xl">{{ totals.confirmed }}</strong>
+        <p class="text-sm text-slate-500">Agendados</p>
+        <strong class="mt-2 block text-2xl">{{ totals.scheduled }}</strong>
       </AppCard>
       <AppCard class="p-4">
         <p class="text-sm text-slate-500">Concluídos</p>
         <strong class="mt-2 block text-2xl">{{ totals.completed }}</strong>
       </AppCard>
       <AppCard class="p-4">
-        <p class="text-sm text-slate-500">Pendentes</p>
-        <strong class="mt-2 block text-2xl">{{ totals.pending }}</strong>
+        <p class="text-sm text-slate-500">Faltas</p>
+        <strong class="mt-2 block text-2xl">{{ totals.noShow }}</strong>
+      </AppCard>
+      <AppCard class="p-4">
+        <p class="text-sm text-slate-500">Cancelados</p>
+        <strong class="mt-2 block text-2xl">{{ totals.cancelled }}</strong>
       </AppCard>
     </section>
 
@@ -311,11 +375,7 @@ onMounted(async () => {
       <input v-model="date" class="h-10 rounded-lg border border-[#E2E8F0] px-3 text-sm" type="date" />
       <select v-model="status" class="h-10 rounded-lg border border-[#E2E8F0] px-3 text-sm">
         <option value="">Todos os status</option>
-        <option value="scheduled">Agendado</option>
-        <option value="confirmed">Confirmado</option>
-        <option value="completed">Concluído</option>
-        <option value="canceled">Cancelado</option>
-        <option value="no_show">Faltou</option>
+        <option v-for="option in appointmentStatusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
       </select>
       <AppButton variant="secondary" :disabled="loading" @click="loadAppointments">
         {{ loading ? 'Filtrando...' : 'Filtrar' }}
@@ -359,6 +419,14 @@ onMounted(async () => {
             <AppBadge :tone="statusTone(appointment.status)">{{ statusLabels[appointment.status] }}</AppBadge>
           </td>
           <td class="px-4 py-3 text-right">
+            <select
+              class="mr-2 h-9 rounded-lg border border-[#E2E8F0] px-2 text-xs text-slate-700"
+              :disabled="updatingStatusId === appointment.id"
+              :value="appointment.status"
+              @change="handleQuickStatusChange(appointment, $event)"
+            >
+              <option v-for="option in appointmentStatusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+            </select>
             <button class="mr-1 inline-grid h-9 w-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-100" title="Editar" @click="openEditModal(appointment)">
               <Pencil class="h-4 w-4" />
             </button>
@@ -398,11 +466,7 @@ onMounted(async () => {
           <label class="grid gap-1.5 text-sm font-medium text-slate-700">
             Status
             <select v-model="form.status" class="h-10 rounded-lg border border-[#E2E8F0] px-3 text-sm">
-              <option value="scheduled">Agendado</option>
-              <option value="confirmed">Confirmado</option>
-              <option value="completed">Concluído</option>
-              <option value="canceled">Cancelado</option>
-              <option value="no_show">Faltou</option>
+              <option v-for="option in appointmentStatusOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
             </select>
           </label>
           <label class="grid gap-1.5 text-sm font-medium text-slate-700">

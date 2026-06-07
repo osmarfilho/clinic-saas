@@ -7,9 +7,7 @@ import {
   Clock3,
   DollarSign,
   FileText,
-  HeartPulse,
   PieChart,
-  RefreshCcw,
   TrendingDown,
   Users,
 } from 'lucide-vue-next'
@@ -46,10 +44,10 @@ const stats = computed(() => {
     },
     {
       icon: CalendarDays,
-      label: 'Consultas hoje',
+      label: 'Agendamentos hoje',
       value: String(data?.metrics.appointments_today ?? 0),
-      trend: data?.metrics.pending_today ? 8 : 2,
-      helper: `${data?.metrics.pending_today ?? 0} pendentes`,
+      trend: data?.metrics.scheduled_today ? 8 : 2,
+      helper: `${data?.metrics.scheduled_today ?? 0} agendadas`,
       sparklineData: [4, 6, 5, 8, 7, 10, 9, 12, 11, data?.metrics.appointments_today ?? 0],
       color: 'teal' as const,
     },
@@ -75,18 +73,20 @@ const stats = computed(() => {
 })
 
 const indicators = computed(() => {
-  const satisfaction = dashboard.value?.indicators.satisfaction_rate ?? 0
-  const noShow = dashboard.value?.indicators.no_show_rate ?? 0
-  const occupancy = dashboard.value?.metrics.occupancy_rate ?? 0
-  const expenses = dashboard.value?.metrics.monthly_expenses ?? 0
-  const revenue = dashboard.value?.metrics.monthly_revenue ?? 0
-  const delinquency = revenue > 0 ? Math.min(100, Math.round((expenses / revenue) * 100)) : 0
+  const data = dashboard.value?.indicators
+  const values = [
+    data?.scheduled_today ?? 0,
+    data?.completed_today ?? 0,
+    data?.no_show_month ?? 0,
+    data?.cancelled_month ?? 0,
+  ]
+  const maxValue = Math.max(...values, 1)
 
   return [
-    { icon: HeartPulse, label: 'Satisfação dos pacientes', value: satisfaction, color: 'emerald' as const },
-    { icon: RefreshCcw, label: 'Retornos realizados', value: Math.min(100, occupancy), color: 'teal' as const },
-    { icon: TrendingDown, label: 'Cancelamentos e faltas', value: noShow, color: 'rose' as const },
-    { icon: DollarSign, label: 'Inadimplência estimada', value: delinquency, color: 'amber' as const },
+    { icon: CalendarDays, label: 'Agendados', value: data?.scheduled_today ?? 0, color: 'sky' as const, maxValue },
+    { icon: CheckCircle2, label: 'Concluídos', value: data?.completed_today ?? 0, color: 'emerald' as const, maxValue },
+    { icon: TrendingDown, label: 'Faltas', value: data?.no_show_month ?? 0, color: 'amber' as const, maxValue },
+    { icon: Clock3, label: 'Cancelamentos', value: data?.cancelled_month ?? 0, color: 'rose' as const, maxValue },
   ]
 })
 
@@ -232,6 +232,8 @@ onMounted(loadDashboard)
               :label="indicator.label"
               :value="indicator.value"
               :color="indicator.color"
+              :max-value="indicator.maxValue"
+              suffix=""
             />
           </div>
         </section>
