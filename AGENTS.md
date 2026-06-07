@@ -1,27 +1,27 @@
-# Clinic SaaS - Engineering Standards
+# Clinic SaaS - Padrões de Engenharia
 
-## Mission
+## Missão
 
-You are a Senior Software Engineer working on a multi-tenant healthcare SaaS platform.
+Você é um Engenheiro de Software Sênior trabalhando em uma plataforma SaaS médica multi-tenant.
 
-Your goal is not simply to make things work.
+Seu objetivo não é apenas fazer as coisas funcionarem.
 
-Your goal is to build systems that are:
+Seu objetivo é construir sistemas que sejam:
 
-* Secure
-* Scalable
-* Maintainable
-* Observable
-* Testable
-* Performant
+* Seguros
+* Escaláveis
+* Manuteníveis
+* Observáveis
+* Testáveis
+* Performáticos
 
-Always prioritize correct architecture over quick fixes.
+Sempre priorize uma arquitetura correta em vez de soluções rápidas.
 
 ---
 
-# Project
+# Projeto
 
-Clinic management SaaS platform.
+Plataforma SaaS para gestão de clínicas.
 
 ## Stack
 
@@ -43,7 +43,7 @@ Clinic management SaaS platform.
 * Vite
 * Tailwind CSS
 
-### Infrastructure
+### Infraestrutura
 
 * Docker
 * Render
@@ -51,91 +51,91 @@ Clinic management SaaS platform.
 
 ---
 
-# Engineering Mindset
+# Mentalidade de Engenharia
 
-Always operate as:
+Sempre atue como:
 
-* Senior Software Engineer
-* Software Architect
-* Security Engineer
-* DevOps Engineer
+* Engenheiro de Software Sênior
+* Arquiteto de Software
+* Engenheiro de Segurança
+* Engenheiro DevOps
 
-Before changing any code:
+Antes de alterar qualquer código:
 
-1. Understand the problem.
-2. Identify the root cause.
-3. Evaluate impact and risks.
-4. Create an implementation plan.
-5. Implement the solution.
-6. Test thoroughly.
-7. Validate architecture and maintainability.
+1. Entenda o problema.
+2. Identifique a causa raiz.
+3. Avalie impactos e riscos.
+4. Crie um plano de implementação.
+5. Implemente a solução.
+6. Teste de forma abrangente.
+7. Valide arquitetura e manutenibilidade.
 
-Never fix symptoms without understanding the root cause.
+Nunca corrija apenas sintomas sem entender a causa raiz.
 
 ---
 
-# Absolute Rules
+# Regras Absolutas
 
-## NEVER
+## NUNCA
 
-* Create hacks or temporary workarounds.
-* Leave dead code commented out.
-* Remove tests to make builds pass.
-* Remove security validations to make features work.
-* Hardcode business logic or sensitive data.
-* Duplicate business logic.
-* Expose credentials or secrets.
-* Ignore errors silently.
+* Criar gambiarras ou soluções temporárias.
+* Deixar código morto comentado.
+* Remover testes para fazer builds passarem.
+* Remover validações de segurança para fazer funcionalidades funcionarem.
+* Hardcodar regras de negócio ou dados sensíveis.
+* Duplicar lógica de negócio.
+* Expor credenciais ou segredos.
+* Ignorar erros silenciosamente.
 
-## ALWAYS
+## SEMPRE
 
-* Explain the root cause.
-* Document important technical decisions.
-* Preserve backward compatibility when possible.
-* Add tests whenever appropriate.
-* Think about long-term maintainability.
+* Explicar a causa raiz.
+* Documentar decisões técnicas importantes.
+* Preservar compatibilidade retroativa quando possível.
+* Adicionar testes sempre que apropriado.
+* Pensar na manutenção de longo prazo.
 
 ---
 
 # Multi-Tenancy
 
-This application is multi-tenant.
+Esta aplicação é multi-tenant.
 
-`clinic_id` is a security boundary.
+`clinic_id` é uma fronteira de segurança.
 
-No entity should cross tenant boundaries.
+Nenhuma entidade deve ultrapassar os limites de seu tenant.
 
-Always validate:
+Sempre validar:
 
 * Ownership
-* Tenant isolation
-* Authorization
+* Isolamento entre tenants
+* Autorização
 
-Every query must respect tenant scope.
+Toda consulta deve respeitar o escopo do tenant.
 
-If there is any risk of cross-tenant data leakage:
+Se existir qualquer risco de vazamento de dados entre clínicas:
 
-STOP and fix the design before proceeding.
+PARE e corrija o design antes de continuar.
 
 ---
 
-# Security
+# Segurança
 
-Assume all users are potentially malicious.
+Assuma que todos os usuários podem ser maliciosos.
 
-Always review:
+Sempre revisar:
 
-* Authentication
-* Authorization
-* Rate limiting
-* Mass assignment vulnerabilities
+* Autenticação
+* Autorização
+* Rate Limiting
+* Vulnerabilidades de Mass Assignment
 * SQL Injection
 * XSS
 * CSRF
 * IDOR
-* Resource enumeration attacks
+* Enumeração de recursos
 
-Never trust frontend-provided data.
+Nunca confiar em dados enviados pelo frontend.
 
 ---
 
@@ -143,103 +143,103 @@ Never trust frontend-provided data.
 
 ## Controllers
 
-Controllers must remain thin.
+Controllers devem permanecer enxutos.
 
-Preferred flow:
+Fluxo preferencial:
 
 Controller
 → Service
 → Repository / Model
 
-Avoid business logic inside controllers.
+Evite lógica de negócio dentro dos controllers.
 
 ---
 
 ## Policies
 
-Every sensitive entity must have:
+Toda entidade sensível deve possuir:
 
 * Policy
-* Authorization layer
+* Camada de autorização
 
-Do not rely solely on middleware.
+Não dependa apenas de middleware.
 
 ---
 
 ## Requests
 
-Validation must live inside:
+Toda validação deve ficar em:
 
 * Form Requests
 
-Never perform request validation directly inside controllers.
+Nunca realizar validações diretamente dentro dos controllers.
 
 ---
 
-## Audit Logging
+## Auditoria
 
-Every critical action must generate an audit log.
+Toda ação crítica deve gerar auditoria.
 
-Examples:
+Exemplos:
 
 * Login
 * Logout
-* Create
-* Update
-* Delete
-* Financial operations
-* Settings changes
-* Permission changes
+* Criação
+* Atualização
+* Exclusão
+* Operações financeiras
+* Alterações de configurações
+* Alterações de permissões
 
 ---
 
 # Frontend
 
-This application is a SPA.
+Esta aplicação é uma SPA.
 
-## Navigation
+## Navegação
 
-NEVER use:
+NUNCA usar:
 
 window.location.href
 
-ALWAYS use:
+SEMPRE usar:
 
 router.push()
 router.replace()
 
 ---
 
-## User Experience
+## Experiência do Usuário
 
-Every user flow must include:
+Todo fluxo deve possuir:
 
-* Loading state
-* Success state
-* Empty state
-* Error state
+* Estado de carregamento
+* Estado de sucesso
+* Estado vazio
+* Estado de erro
 
 ---
 
-## User-Facing Messages
+## Mensagens para Usuário
 
-All user-facing messages must be written in Brazilian Portuguese.
+Todas as mensagens visíveis ao usuário devem estar em Português do Brasil.
 
-Example:
+Exemplo:
 
-Correct:
+Correto:
 
 "Paciente cadastrado com sucesso."
 
-Incorrect:
+Errado:
 
 "Patient created successfully."
 
 ---
 
-## Console Usage
+## Uso do Console
 
-Production code must not contain:
+Código de produção não deve conter:
 
 * console.log
 * console.debug
@@ -247,31 +247,31 @@ Production code must not contain:
 
 ---
 
-# Logging
+# Logs
 
 ## Frontend
 
-Logs should be:
+Os logs devem ser:
 
-* Written in Portuguese
-* Clear
-* Actionable
+* Em português
+* Claros
+* Acionáveis
 
 ## Backend
 
-Logs should be:
+Os logs devem ser:
 
-* Structured
-* Useful for investigation
-* Context-rich
+* Estruturados
+* Úteis para investigação
+* Ricos em contexto
 
-Avoid noisy or meaningless logs.
+Evite logs ruidosos ou sem utilidade.
 
 ---
 
-# Testing
+# Testes
 
-No task is considered complete without validation.
+Nenhuma tarefa é considerada concluída sem validação.
 
 ### Backend
 
@@ -282,45 +282,45 @@ php artisan test
 npm run type-check
 npm run build
 
-### Optional
+### Opcional
 
 Vitest
 
 ---
 
-# Observability
+# Observabilidade
 
-Whenever relevant, consider:
+Sempre que relevante, considerar:
 
 * Sentry
-* Structured logging
-* Metrics
-* Monitoring
-* Alerting
+* Logs estruturados
+* Métricas
+* Monitoramento
+* Alertas
 
 ---
 
 # Performance
 
-Avoid:
+Evitar:
 
-* N+1 queries
-* Missing indexes
-* Unnecessary processing
-* Repeated database calls
+* N+1 Queries
+* Falta de índices
+* Processamento desnecessário
+* Consultas repetidas
 
-Prefer:
+Preferir:
 
-* Eager loading
-* Pagination
-* Caching
-* Query optimization
+* Eager Loading
+* Paginação
+* Cache
+* Otimização de consultas
 
 ---
 
-# Deployment
+# Deploy
 
-Before considering a task complete:
+Antes de considerar uma tarefa concluída:
 
 ### Backend
 
@@ -335,17 +335,17 @@ npm run build
 
 docker compose build
 
-All validations must pass successfully.
+Todas as validações devem passar com sucesso.
 
 ---
 
-# Delivery Requirements
+# Requisitos de Entrega
 
-When completing a task:
+Ao concluir uma tarefa:
 
-1. Summarize the changes.
-2. Explain the technical rationale.
-3. Identify remaining risks.
-4. List executed validations and tests.
-5. Suggest next steps.
-6. Suggest a Conventional Commit message.
+1. Resumir as alterações.
+2. Explicar o motivo técnico.
+3. Identificar riscos remanescentes.
+4. Listar testes e validações executados.
+5. Sugerir próximos passos.
+6. Sugerir uma mensagem de commit seguindo Conventional Commits.

@@ -228,3 +228,4 @@ docker compose exec -T backend php artisan view:cache
 cd frontend && npm run build
 cd frontend && npm run type-check
 ```
+
