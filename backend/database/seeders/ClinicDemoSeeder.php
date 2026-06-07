@@ -20,19 +20,20 @@ class ClinicDemoSeeder extends Seeder
         $clinic = Clinic::firstOrCreate([
             'name' => 'Clinic SaaS',
         ], [
-            'document' => '12.345.678/0001-90',
-            'phone' => '(85) 3333-0000',
+            'document' => '12345678000190',
+            'phone' => '8533330000',
             'email' => 'contato@clinic.test',
             'active' => true,
         ]);
 
         $admin = null;
-        $demoEmail = env('DEMO_ADMIN_EMAIL');
-        $demoPassword = env('DEMO_ADMIN_PASSWORD');
 
-        if (app()->environment('local') && $demoEmail && $demoPassword) {
-            $adminRole = Role::firstOrCreate([
-                'name' => 'Admin da Clínica',
+        if (app()->environment('local')) {
+            $demoEmail = env('DEMO_ADMIN_EMAIL', 'admin@clinic.test');
+            $demoPassword = env('DEMO_ADMIN_PASSWORD', '123456');
+
+            Role::firstOrCreate([
+                'name' => 'Super Admin',
                 'guard_name' => 'web',
             ]);
 
@@ -260,8 +261,8 @@ class ClinicDemoSeeder extends Seeder
 
         $settings = [
             'clinic_name' => 'Clinic SaaS',
-            'document' => '12.345.678/0001-90',
-            'phone' => '(85) 3333-0000',
+            'document' => '12345678000190',
+            'phone' => '8533330000',
             'email' => 'contato@clinic.test',
             'address' => 'Av. Santos Dumont, 1000 - Fortaleza/CE',
             'opening_time' => '08:00',
